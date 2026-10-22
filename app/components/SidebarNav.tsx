@@ -22,9 +22,10 @@ import { getTranslation } from "@/lib/translations";
 
 interface SidebarNavProps {
   currentLang?: "en" | "th";
+  currentRole?: string;
 }
 
-export default function SidebarNav({ currentLang = "en" }: SidebarNavProps) {
+export default function SidebarNav({ currentLang = "en", currentRole }: SidebarNavProps) {
   const pathname = usePathname() || "/";
   const t = getTranslation(currentLang);
 
@@ -39,15 +40,15 @@ export default function SidebarNav({ currentLang = "en" }: SidebarNavProps) {
     { href: "/inventory", label: t.inventory, icon: Package },
     { href: "/contributions", label: t.contributors, icon: UsersRound },
     { href: "/analytics", label: t.analytics, icon: BarChart3 },
-    { href: "/database", label: t.database, icon: Database },
+    { href: "/database", label: t.database, icon: Database, adminOnly: true },
     { href: "/submit-data", label: t.submit, icon: Send },
-    { href: "/admin", label: t.admin, icon: Settings2 },
+    { href: "/admin", label: t.admin, icon: Settings2, adminOnly: true },
     { href: "/profile", label: t.profile, icon: CircleUserRound }
   ];
 
   return (
     <nav className="nav" aria-label="Primary">
-      {navItems.map((item) => {
+      {navItems.filter((item) => !item.adminOnly || currentRole === "ADMIN").map((item) => {
         const Icon = item.icon;
         const isActive = item.href === "/admin" ? pathname.startsWith("/admin") : pathname === item.href;
         return (
