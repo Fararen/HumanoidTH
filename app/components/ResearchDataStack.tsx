@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, Box, Database, UsersRound } from "lucide-react";
+import { Bot, Box, Database, Trophy, UsersRound } from "lucide-react";
 import { type CSSProperties, useState } from "react";
 
 type Card = {
@@ -12,10 +12,10 @@ type Card = {
   description: string;
   detail: string;
   href: string;
-  icon: "database" | "bot" | "box" | "users";
+  icon: "database" | "bot" | "box" | "users" | "trophy";
 };
 
-const icons = { database: Database, bot: Bot, box: Box, users: UsersRound };
+const icons = { database: Database, bot: Bot, box: Box, users: UsersRound, trophy: Trophy };
 
 export default function ResearchDataStack({ cards }: { cards: Card[] }) {
   const [activeId, setActiveId] = useState(cards[0]?.id);
