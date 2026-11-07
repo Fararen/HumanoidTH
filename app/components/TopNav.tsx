@@ -1,38 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import { CircleUserRound, ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
-import type { SyntheticEvent } from "react";
-import { ChevronDown, CircleUserRound, Search } from "lucide-react";
 import LanguageSelector from "./LanguageSelector";
+import GlobalSearch from "./GlobalSearch";
 
-type NavItem = { href: string; label: string };
-type NavGroup = { label: string; items: NavItem[]; adminOnly?: boolean };
+type Props = { currentLang: "en" | "th"; currentRole?: string };
 
-export default function TopNav({ currentLang, currentRole }: { currentLang: "en" | "th"; currentRole?: string }) {
+export default function TopNav({ currentLang, currentRole }: Props) {
   const pathname = usePathname() || "/";
-  const isAdmin = currentRole === "ADMIN";
-  const groups: NavGroup[] = [
-    { label: "Explore", items: [{ href: "/dashboard", label: "Dashboard" }, { href: "/map", label: "Map" }, { href: "/network", label: "Network" }] },
-    { label: "Robotics", items: [{ href: "/robots", label: "Robot models" }, { href: "/inventory", label: "Inventory" }] },
-    { label: "Insights", items: [{ href: "/perspectives", label: "Perspectives" }, { href: "/analytics", label: "Analytics" }] },
-    { label: "Contribute", items: [{ href: "/contributions", label: "Contributions" }, { href: "/submit-data", label: "Submit data" }] },
-    { label: "Manage", adminOnly: true, items: [{ href: "/data-pulls", label: "Data pulls" }, { href: "/database", label: "Database" }, { href: "/admin", label: "Admin review" }] }
-  ];
-  const active = (href: string) => href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-  const closeOtherMenus = (event: SyntheticEvent<HTMLDetailsElement>) => {
-    const currentMenu = event.currentTarget;
-    if (!currentMenu.open) return;
-    document.querySelectorAll<HTMLDetailsElement>(".top-nav__links details[open]").forEach((menu) => {
-      if (menu !== currentMenu) menu.open = false;
-    });
-  };
+  const th = currentLang === "th";
+  const isActive = (href: string) => href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const groupIsActive = (links: string[]) => links.some(isActive);
+  const workspace = ["/", "/dashboard"];
+  const explore = ["/robots", "/database", "/map", "/network"];
+  const community = ["/analytics", "/perspectives", "/contributions", "/submit-data", "/inventory"];
 
   return <header className="top-nav"><div className="top-nav__inner">
-    <Link href="/" className="top-nav__brand" aria-label="HumanoidTH home"><img src="/logo.png" alt="" /><span>Humanoid<span>TH</span><small>Thailand Humanoid Research Console</small></span></Link>
-    <nav className="top-nav__links" aria-label="Primary navigation"><Link href="/" className={active("/") ? "active" : ""}>Overview</Link>{groups.filter((group) => !group.adminOnly || isAdmin).map((group) => {
-      return <details key={group.label} className={group.items.some((item) => active(item.href)) ? "active" : ""} onToggle={closeOtherMenus}><summary>{group.label}<ChevronDown size={14} aria-hidden="true" /></summary><div className="top-nav__menu">{group.items.map((item) => <Link href={item.href} key={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}</div></details>;
-    })}</nav>
-    <div className="top-nav__tools"><label className="top-nav__search"><Search size={16} aria-hidden="true" /><input aria-label="Search the atlas" placeholder="Search datasets, models, papers..." /></label><LanguageSelector currentLang={currentLang} /><Link href="/profile" className="top-nav__profile"><CircleUserRound size={18} aria-hidden="true" /><span>Profile</span></Link></div>
+    <Link href="/" className="top-nav__brand" aria-label="HumanoidTH home"><img src="/logo.png" alt="" /><span>Humanoid<span>TH</span><small>Thailand robotics atlas</small></span></Link>
+    <nav className="top-nav__links" aria-label={th ? "เมนูหลัก" : "Primary navigation"}>
+      <details className={groupIsActive(workspace) ? "active" : ""}><summary>{th ? "พื้นที่ทำงาน" : "Workspace"}<ChevronDown size={14} aria-hidden="true" /></summary><div className="top-nav__menu"><Link href="/" className={isActive("/") ? "active" : ""}>Overview</Link><Link href="/dashboard" className={isActive("/dashboard") ? "active" : ""}>Dashboard</Link></div></details>
+      <details className={groupIsActive(explore) ? "active" : ""}><summary>{th ? "สำรวจข้อมูล" : "Explore"}<ChevronDown size={14} aria-hidden="true" /></summary><div className="top-nav__menu"><Link href="/robots" className={isActive("/robots") ? "active" : ""}>Robot models</Link><Link href="/database" className={isActive("/database") ? "active" : ""}>Evidence database</Link><Link href="/map" className={isActive("/map") ? "active" : ""}>Ecosystem map</Link><Link href="/network" className={isActive("/network") ? "active" : ""}>Knowledge graph</Link></div></details>
+      <details className={groupIsActive(community) ? "active" : ""}><summary>{th ? "ข้อมูลเชิงลึก" : "Insights"}<ChevronDown size={14} aria-hidden="true" /></summary><div className="top-nav__menu"><Link href="/analytics" className={isActive("/analytics") ? "active" : ""}>Analytics</Link><Link href="/perspectives" className={isActive("/perspectives") ? "active" : ""}>Research perspectives</Link><Link href="/contributions" className={isActive("/contributions") ? "active" : ""}>Contributors</Link><Link href="/submit-data" className={isActive("/submit-data") ? "active" : ""}>Submit data</Link><Link href="/inventory" className={isActive("/inventory") ? "active" : ""}>Robot inventory</Link></div></details>
+      {currentRole === "ADMIN" && <details className={groupIsActive(["/data-pulls", "/admin"]) ? "active" : ""}><summary>{th ? "ผู้ดูแล" : "Admin"}<ChevronDown size={14} aria-hidden="true" /></summary><div className="top-nav__menu"><Link href="/data-pulls" className={isActive("/data-pulls") ? "active" : ""}>Data pulls</Link><Link href="/admin" className={isActive("/admin") ? "active" : ""}>Review queue</Link></div></details>}
+    </nav>
+    <GlobalSearch lang={currentLang} />
+    <div className="top-nav__tools"><LanguageSelector currentLang={currentLang} /><Link href="/profile" className="top-nav__profile"><CircleUserRound size={18} aria-hidden="true" /><span>{currentLang === "th" ? "โปรไฟล์" : "Profile"}</span></Link></div>
   </div></header>;
 }

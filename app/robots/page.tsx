@@ -125,7 +125,8 @@ function getRobotSourceImage(robot: RobotLike, sources: SourceLike[]) {
   return getSourceImageUrl(source?.url ?? robot.officialUrl, source?.rawMeta ?? null);
 }
 
-export default async function RobotsPage() {
+export default async function RobotsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
@@ -187,6 +188,7 @@ export default async function RobotsPage() {
       {robots.length ? (
         <RobotDirectory
           lang={lang}
+          initialQuery={params.q || ""}
           robots={robots.map((robot): RobotDirectoryItem => ({
             id: robot.id,
             canonicalName: robot.canonicalName,

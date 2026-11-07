@@ -137,7 +137,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
         <FirstTimeLoader />
         <div className="app-shell">
-          <MobileHeader />
+          <MobileHeader currentLang={lang} />
           <TopNav currentLang={lang} currentRole={currentRole} />
           <main className="main motion-page">{children}</main>
           {cookieStore.get("user_role")?.value === "ADMIN" && <DataPullFab />}

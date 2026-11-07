@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Clock3, Database, Flame, MapPin, Search } from "lucide-react";
+import Link from "next/link";
+import { Bot, Clock3, Database, Flame, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import styles from "./RobotDirectory.module.css";
 
 export type RobotDirectoryItem = {
@@ -24,6 +25,7 @@ export type RobotDirectoryItem = {
 type Props = {
   lang: "en" | "th";
   robots: RobotDirectoryItem[];
+  initialQuery?: string;
 };
 
 type View = "location" | "latest" | "popular";
@@ -50,6 +52,14 @@ const localT = {
     updated: "Updated",
     firstSeen: "First recorded",
     noMatches: "No models match this search.",
+    filters: "Filters",
+    allTypes: "All robot types",
+    allStatuses: "All Thailand statuses",
+    sortBy: "Sort by",
+    sortName: "Name A–Z",
+    sortUpdated: "Recently updated",
+    sortActivity: "Atlas activity",
+    results: "models",
     source: "Open source",
     noImage: "No source image",
     locationSummary: "Models are grouped by their public deployment locations. A model can appear in more than one location.",
@@ -77,6 +87,14 @@ const localT = {
     updated: "อัปเดต",
     firstSeen: "พบใน Atlas ครั้งแรก",
     noMatches: "ไม่พบ Robot Model ที่ตรงกับคำค้นหา",
+    filters: "ตัวกรอง",
+    allTypes: "ทุกประเภทหุ่นยนต์",
+    allStatuses: "ทุกสถานะในไทย",
+    sortBy: "เรียงตาม",
+    sortName: "ชื่อ A–Z",
+    sortUpdated: "อัปเดตล่าสุด",
+    sortActivity: "กิจกรรมใน Atlas",
+    results: "รุ่น",
     source: "เปิดแหล่งข้อมูล",
     noImage: "ไม่มีรูปจากแหล่งข้อมูล",
     locationSummary: "จัดกลุ่มตามสถานที่ deployment ที่เปิดเผยต่อสาธารณะ โมเดลหนึ่งรุ่นจึงอาจปรากฏได้มากกว่าหนึ่งพื้นที่",
@@ -109,7 +127,7 @@ function RobotCard({ robot, lang }: { robot: RobotDirectoryItem; lang: Props["la
       </div>
       <div className={styles.cardBody}>
         <div className={styles.cardTitleRow}>
-          <h3>{robot.canonicalName}</h3>
+          <h3><Link href={`/robots/${robot.id}`}>{robot.canonicalName}</Link></h3>
           <span className={styles.statusBadge}>{cleanLabel(robot.thailandStatus)}</span>
         </div>
         <p className={styles.description}>{robot.description ?? (lang === "th" ? "ยังไม่มีคำอธิบายโมเดล" : "No description yet.")}</p>
@@ -145,22 +163,28 @@ function LocationGroup({ label, robots, lang }: { label: string; robots: RobotDi
   );
 }
 
-export default function RobotDirectory({ lang, robots }: Props) {
+export default function RobotDirectory({ lang, robots, initialQuery = "" }: Props) {
   const t = localT[lang];
   const [view, setView] = useState<View>("location");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"name" | "updated" | "activity">("updated");
   const normalizedQuery = query.trim().toLocaleLowerCase();
+  const robotTypes = useMemo(() => [...new Set(robots.map((robot) => robot.robotType))].sort(), [robots]);
+  const statuses = useMemo(() => [...new Set(robots.map((robot) => robot.thailandStatus))].sort(), [robots]);
   const visibleRobots = useMemo(() => {
-    if (!normalizedQuery) return robots;
-    return robots.filter((robot) => [
+    return robots.filter((robot) => (typeFilter === "all" || robot.robotType === typeFilter)
+      && (statusFilter === "all" || robot.thailandStatus === statusFilter)
+      && (!normalizedQuery || [
       robot.canonicalName,
       robot.robotType,
       robot.manufacturer,
       robot.developerOrg,
       robot.primaryUseCase,
       ...robot.publicLocations
-    ].filter(Boolean).join(" ").toLocaleLowerCase().includes(normalizedQuery));
-  }, [normalizedQuery, robots]);
+    ].filter(Boolean).join(" ").toLocaleLowerCase().includes(normalizedQuery)));
+  }, [normalizedQuery, robots, statusFilter, typeFilter]);
   const locationGroups = useMemo(() => {
     const grouped = new Map<string, RobotDirectoryItem[]>();
     visibleRobots.forEach((robot) => {
@@ -174,9 +198,15 @@ export default function RobotDirectory({ lang, robots }: Props) {
     });
   }, [visibleRobots]);
   const orderedRobots = useMemo(() => [...visibleRobots].sort((left, right) => {
-    if (view === "latest") return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
-    return activityScore(right) - activityScore(left) || new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
-  }), [view, visibleRobots]);
+    if (sortBy === "name") return left.canonicalName.localeCompare(right.canonicalName);
+    if (sortBy === "activity") return activityScore(right) - activityScore(left) || new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  }), [sortBy, visibleRobots]);
+  const sortedLocationGroups = useMemo(() => locationGroups.map(([location, models]) => [location, [...models].sort((left, right) => {
+    if (sortBy === "name") return left.canonicalName.localeCompare(right.canonicalName);
+    if (sortBy === "activity") return activityScore(right) - activityScore(left) || left.canonicalName.localeCompare(right.canonicalName);
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  })] as [string, RobotDirectoryItem[]]), [locationGroups, sortBy]);
   const viewCopy = view === "location" ? t.locationSummary : view === "latest" ? t.latestSummary : t.popularSummary;
 
   return (
@@ -188,7 +218,7 @@ export default function RobotDirectory({ lang, robots }: Props) {
             ["latest", Clock3, t.latest, t.latestHint],
             ["popular", Flame, t.popular, t.popularHint]
           ] as const).map(([id, Icon, label, hint]) => (
-            <button aria-selected={view === id} className={view === id ? styles.activeTab : ""} key={id} onClick={() => setView(id)} role="tab" type="button">
+            <button aria-selected={view === id} className={view === id ? styles.activeTab : ""} key={id} onClick={() => { setView(id); if (id === "latest") setSortBy("updated"); if (id === "popular") setSortBy("activity"); }} role="tab" type="button">
               <Icon aria-hidden="true" size={17} />
               <span><strong>{label}</strong><small>{hint}</small></span>
             </button>
@@ -201,11 +231,18 @@ export default function RobotDirectory({ lang, robots }: Props) {
         </label>
       </div>
 
+      <div className={styles.filterBar}>
+        <div className={styles.filterLabel}><SlidersHorizontal size={15} /><span>{t.filters}</span><b>{visibleRobots.length} {t.results}</b></div>
+        <label><span>{t.filters}</span><select aria-label={t.allTypes} onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}><option value="all">{t.allTypes}</option>{robotTypes.map((type) => <option key={type} value={type}>{cleanLabel(type)}</option>)}</select></label>
+        <label><span>{lang === "th" ? "สถานะ" : "Thailand status"}</span><select aria-label={t.allStatuses} onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}><option value="all">{t.allStatuses}</option>{statuses.map((status) => <option key={status} value={status}>{cleanLabel(status)}</option>)}</select></label>
+        <label><span>{t.sortBy}</span><select aria-label={t.sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} value={sortBy}><option value="name">{t.sortName}</option><option value="updated">{t.sortUpdated}</option><option value="activity">{t.sortActivity}</option></select></label>
+      </div>
+
       {visibleRobots.length ? (
         view === "location" ? (
           <div className={styles.locationView}>
             <p className={styles.viewSummary}>{viewCopy}</p>
-            {locationGroups.map(([location, groupedRobots]) => <LocationGroup key={location} label={location} lang={lang} robots={groupedRobots} />)}
+            {sortedLocationGroups.map(([location, groupedRobots]) => <LocationGroup key={location} label={location} lang={lang} robots={groupedRobots} />)}
           </div>
         ) : (
           <div className={styles.orderedView}>
