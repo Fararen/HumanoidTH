@@ -983,7 +983,7 @@ export default function PostDetailClient({
                         marginTop: 14,
                         marginLeft: 12,
                         paddingLeft: 16,
-                        borderLeft: "2px solid rgba(25, 82, 60, 0.2)",
+                        borderLeft: "1px solid rgba(25, 82, 60, 0.22)",
                         display: "flex",
                         flexDirection: "column",
                         gap: 12

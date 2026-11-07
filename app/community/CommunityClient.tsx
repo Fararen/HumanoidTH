@@ -156,7 +156,7 @@ export default function CommunityClient({
       // Check for success banner from /community/submit
       const successTitle = sessionStorage.getItem("humanoidth_new_post_success");
       if (successTitle) {
-        setSuccessBanner(`🎉 โพสต์ "${successTitle}" เผยแพร่สำเร็จแล้ว และแสดงที่ด้านบนสุดของฟีด`);
+        setSuccessBanner(`โพสต์ "${successTitle}" เผยแพร่สำเร็จแล้ว และแสดงที่ด้านบนสุดของฟีด`);
         setSortOrder("LATEST");
         sessionStorage.removeItem("humanoidth_new_post_success");
       }
@@ -294,7 +294,7 @@ export default function CommunityClient({
     setSelectedType("ALL");
     setSelectedTag("ALL");
     setSortOrder("LATEST");
-    setSuccessBanner(`🎉 โพสต์ "${newPost.title}" เผยแพร่สำเร็จแล้ว และแสดงที่ด้านบนสุดของฟีด`);
+    setSuccessBanner(`โพสต์ "${newPost.title}" เผยแพร่สำเร็จแล้ว และแสดงที่ด้านบนสุดของฟีด`);
     setIsCreateModalOpen(false);
 
     if (typeof window !== "undefined") {
@@ -1214,8 +1214,8 @@ export default function CommunityClient({
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
+                lineHeight: 1.3,
+                letterSpacing: "-0.01em",
                 margin: "0 0 10px 0",
                 color: "var(--text-secondary, #64748b)",
                 display: "flex",
@@ -1290,8 +1290,8 @@ export default function CommunityClient({
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
+                lineHeight: 1.3,
+                letterSpacing: "-0.01em",
                 margin: "0 0 10px 0",
                 color: "var(--text-secondary, #64748b)",
                 display: "flex",

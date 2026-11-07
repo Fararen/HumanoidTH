@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -234,9 +234,9 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               }}
             >
               <span>Hosted by <strong style={{ color: "#ffffff" }}>{featuredChallenge.organizer.name}</strong></span>
-              <span>•</span>
+              <span>โ€ข</span>
               <span style={{ color: "#fde047", fontWeight: 700 }}>{featuredChallenge.schedule.closingText}</span>
-              <span>•</span>
+              <span>โ€ข</span>
               <span>{featuredChallenge.category}</span>
             </div>
           </div>
@@ -255,10 +255,10 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
           >
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                lineHeight: 1.3,
+                letterSpacing: "-0.01em",
                 color: "rgba(255, 255, 255, 0.68)"
               }}
             >
@@ -469,10 +469,10 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 padding: "0 10px"
               }}
             >
-              <option value="HOTNESS">🔥 Hotness</option>
-              <option value="PRIZE">💰 Prize Amount</option>
-              <option value="TEAMS">👥 Most Teams</option>
-              <option value="CLOSING_SOON">⏳ Closing Soon</option>
+              <option value="HOTNESS">Hotness</option>
+              <option value="PRIZE">Prize Amount</option>
+              <option value="TEAMS">Most Teams</option>
+              <option value="CLOSING_SOON">Closing Soon</option>
             </select>
           </div>
         </div>
@@ -569,7 +569,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                     boxShadow: "0 2px 6px rgba(0,0,0,0.08)"
                   }}
                 >
-                  {item.bannerEmoji}
+                  <Trophy size={20} style={{ color: "#ffffff" }} />
                 </div>
 
                 {/* Middle Content */}
@@ -635,9 +635,9 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11.5, color: "var(--text-secondary)", flexWrap: "wrap", marginTop: 2 }}>
                     <span>Hosted by <strong style={{ color: "var(--text-primary)" }}>{item.organizer.name}</strong></span>
-                    <span>•</span>
+                    <span>โ€ข</span>
                     <span>{item.category}</span>
-                    <span>•</span>
+                    <span>โ€ข</span>
                     <div style={{ display: "flex", gap: 4 }}>
                       {item.tags.slice(0, 3).map((t) => (
                         <span key={t} style={{ color: "#19523c", fontWeight: 600 }}>

@@ -42,42 +42,42 @@ const POST_TYPE_CONFIG: Record<
   { label: string; bg: string; color: string; border: string; desc: string }
 > = {
   QUESTION: {
-    label: "Question ❓",
+    label: "Question",
     bg: "rgba(217, 119, 6, 0.08)",
     color: "#b45309",
     border: "rgba(217, 119, 6, 0.28)",
     desc: "Technical questions about kinematics, ROS 2, IMU jitter, or motor drivers"
   },
   DISCUSSION: {
-    label: "Discussion 💬",
+    label: "Discussion",
     bg: "rgba(25, 82, 60, 0.08)",
     color: "#19523c",
     border: "rgba(25, 82, 60, 0.25)",
     desc: "Architecture trade-offs, humanoid ecosystem in Thailand, or industry trends"
   },
   TUTORIAL: {
-    label: "Tutorial 📚",
+    label: "Tutorial",
     bg: "rgba(37, 99, 235, 0.08)",
     color: "#1d4ed8",
     border: "rgba(37, 99, 235, 0.28)",
     desc: "Step-by-step guides, Isaac Sim setups, or actuator manufacturing instructions"
   },
   SHOWCASE: {
-    label: "Showcase 🚀",
+    label: "Showcase",
     bg: "rgba(147, 51, 234, 0.08)",
     color: "#7e22ce",
     border: "rgba(147, 51, 234, 0.28)",
     desc: "Bench test results, cycloidal gears, biped walking videos, or hardware builds"
   },
   NEWS: {
-    label: "News 📰",
+    label: "News",
     bg: "rgba(16, 185, 129, 0.08)",
     color: "#047857",
     border: "rgba(16, 185, 129, 0.28)",
     desc: "SDK updates, hackathon announcements, or university lab breakthroughs"
   },
   IDEA: {
-    label: "Idea 💡",
+    label: "Idea",
     bg: "rgba(234, 88, 12, 0.08)",
     color: "#c2410c",
     border: "rgba(234, 88, 12, 0.28)",
@@ -662,7 +662,7 @@ export default function SubmitPostClient({ topics }: SubmitPostClientProps) {
                     whiteSpace: "nowrap"
                   }}
                 >
-                  {isUploading ? "กำลังอัปโหลด..." : "📁 อัปโหลดรูปภาพ"}
+                  {isUploading ? "กำลังอัปโหลด..." : "อัปโหลดรูปภาพ"}
                   <input
                     type="file"
                     accept="image/*"

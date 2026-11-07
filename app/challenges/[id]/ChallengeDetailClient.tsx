@@ -117,7 +117,7 @@ export default function ChallengeDetailClient({
       rank: 0,
       rankChange: 3,
       teamName: teamInput.trim(),
-      teamAvatarEmoji: "🚀",
+      teamAvatarEmoji: "R1",
       title: titleInput.trim(),
       description: descriptionInput.trim() || "No detailed description provided.",
       submittedAt: new Date().toISOString().split("T")[0],
@@ -157,7 +157,7 @@ export default function ChallengeDetailClient({
     setDescriptionInput("");
     setIsSubmitModalOpen(false);
     setActiveTab("leaderboard");
-    setSuccessBanner(`🎉 ยินดีด้วย! ส่งผลงาน "${newSub.title}" สำเร็จ คะแนนพรีวิวอยู่ที่ ${newSub.scoreDisplay} (${newSub.totalScore} pts) และถูกจัดอันดับบน Leaderboard เรียบร้อยแล้ว`);
+    setSuccessBanner(`ส่งผลงาน "${newSub.title}" สำเร็จ คะแนนพรีวิวอยู่ที่ ${newSub.scoreDisplay} (${newSub.totalScore} pts) และถูกจัดอันดับบน Leaderboard เรียบร้อยแล้ว`);
   };
 
   const handleVote = (subId: string) => {
@@ -631,11 +631,11 @@ export default function ChallengeDetailClient({
                         {/* Rank with Medals */}
                         <td style={{ textAlign: "center" }}>
                           {isTop1 ? (
-                            <span style={{ fontSize: 18 }} title="1st Place (Gold Medal)">🥇</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 800, color: "#92400e", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 4, padding: "2px 6px", fontVariantNumeric: "tabular-nums" }} title="1st Place (Gold)">#1</span>
                           ) : isTop2 ? (
-                            <span style={{ fontSize: 18 }} title="2nd Place (Silver Medal)">🥈</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 800, color: "#334155", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, padding: "2px 6px", fontVariantNumeric: "tabular-nums" }} title="2nd Place (Silver)">#2</span>
                           ) : isTop3 ? (
-                            <span style={{ fontSize: 18 }} title="3rd Place (Bronze Medal)">🥉</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 800, color: "#7c2d12", background: "#ffedd5", border: "1px solid #fdba74", borderRadius: 4, padding: "2px 6px", fontVariantNumeric: "tabular-nums" }} title="3rd Place (Bronze)">#3</span>
                           ) : (
                             <strong style={{ fontSize: 13, color: "var(--text-secondary)" }}>{sub.rank}</strong>
                           )}
@@ -644,9 +644,9 @@ export default function ChallengeDetailClient({
                         {/* Rank Delta Indicator (Kaggle-style rank movement) */}
                         <td style={{ textAlign: "center", fontSize: 11.5, fontWeight: 700 }}>
                           {delta > 0 ? (
-                            <span style={{ color: "#16a34a" }}>▲ {delta}</span>
+                            <span style={{ color: "#16a34a", fontVariantNumeric: "tabular-nums" }}>+{delta}</span>
                           ) : delta < 0 ? (
-                            <span style={{ color: "#dc2626" }}>▼ {Math.abs(delta)}</span>
+                            <span style={{ color: "#dc2626", fontVariantNumeric: "tabular-nums" }}>-{Math.abs(delta)}</span>
                           ) : (
                             <span style={{ color: "#94a3b8" }}>—</span>
                           )}
@@ -664,11 +664,13 @@ export default function ChallengeDetailClient({
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                fontSize: 14,
+                                fontSize: 10.5,
+                                fontWeight: 800,
+                                color: "#19523c",
                                 flexShrink: 0
                               }}
                             >
-                              {sub.teamAvatarEmoji || "🤖"}
+                              {sub.teamName.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
                               <strong style={{ fontSize: 13.5, color: "var(--text-primary)", display: "block" }}>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Bot, Clock3, Database, Flame, MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { Bot, Clock3, Compass, Database, Flame, MapPin, Play, Search, SlidersHorizontal } from "lucide-react";
 import styles from "./RobotDirectory.module.css";
 
 export type RobotDirectoryItem = {
@@ -61,6 +61,9 @@ const localT = {
     sortActivity: "Atlas activity",
     results: "models",
     source: "Open source",
+    tryHri: "ทดลอง HRI",
+    hriBannerTitle: "M01 · HumanoidTH HRI Living Lab (Wellness Center Reception)",
+    hriBannerDesc: "Select 'ทดลอง HRI' on any robot card below to launch the interactive reception simulation, test wayfinding or staff handoff decisions, and export a verifiable Run Log.",
     noImage: "No source image",
     locationSummary: "Models are grouped by their public deployment locations. A model can appear in more than one location.",
     latestSummary: "Newest registry updates, so you can see what has recently changed in the Atlas.",
@@ -96,6 +99,9 @@ const localT = {
     sortActivity: "กิจกรรมใน Atlas",
     results: "รุ่น",
     source: "เปิดแหล่งข้อมูล",
+    tryHri: "ทดลอง HRI",
+    hriBannerTitle: "M01 · ทดลองปฏิสัมพันธ์ระหว่างคนกับหุ่นยนต์ (HRI Living Lab) จากข้อมูลรุ่นในทะเบียนจริง",
+    hriBannerDesc: "กดปุ่ม 'ทดลอง HRI' บนการ์ดหุ่นยนต์รุ่นใดก็ได้ เพื่อเปิดสถานการณ์จำลองจุดต้อนรับศูนย์สุขภาวะ เลือกให้หุ่นช่วยนำทาง ขอเจ้าหน้าที่ หรือยกเลิก พร้อมสร้างรายงานและส่งออก Run Log",
     noImage: "ไม่มีรูปจากแหล่งข้อมูล",
     locationSummary: "จัดกลุ่มตามสถานที่ deployment ที่เปิดเผยต่อสาธารณะ โมเดลหนึ่งรุ่นจึงอาจปรากฏได้มากกว่าหนึ่งพื้นที่",
     latestSummary: "รายการที่เพิ่งเปลี่ยนแปลงในทะเบียน เพื่อดูข้อมูลใหม่ใน Atlas ได้รวดเร็ว",
@@ -137,7 +143,13 @@ function RobotCard({ robot, lang }: { robot: RobotDirectoryItem; lang: Props["la
         </div>
         <div className={styles.cardFooter}>
           <span><Database aria-hidden="true" size={13} />{robot.contributionCount} {t.linkedRecords}</span>
-          {robot.officialUrl ? <a href={robot.officialUrl} rel="noopener noreferrer" target="_blank">{t.source}</a> : null}
+          <div className={styles.hriActionRow}>
+            {robot.officialUrl ? <a href={robot.officialUrl} rel="noopener noreferrer" target="_blank">{t.source}</a> : null}
+            <Link className={styles.hriBtn} href={`/robots/${robot.id}/hri-lab`}>
+              <Play aria-hidden="true" size={11} />
+              {t.tryHri}
+            </Link>
+          </div>
         </div>
       </div>
     </article>
@@ -152,9 +164,8 @@ function LocationGroup({ label, robots, lang }: { label: string; robots: RobotDi
     <section className={styles.locationGroup}>
       <header className={styles.groupHeader}>
         <div>
-          <span className={styles.groupEyebrow}>{undisclosed ? t.publicPlace : t.recordedHere}</span>
           <h2><MapPin aria-hidden="true" size={18} />{title}</h2>
-          {undisclosed ? <p>{t.undisclosedHint}</p> : null}
+          <p>{undisclosed ? t.undisclosedHint : t.recordedHere}</p>
         </div>
         <strong>{robots.length} <small>{robots.length === 1 ? t.model : t.models}</small></strong>
       </header>
@@ -208,9 +219,26 @@ export default function RobotDirectory({ lang, robots, initialQuery = "" }: Prop
     return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
   })] as [string, RobotDirectoryItem[]]), [locationGroups, sortBy]);
   const viewCopy = view === "location" ? t.locationSummary : view === "latest" ? t.latestSummary : t.popularSummary;
+  const featuredRobot = visibleRobots[0] ?? robots[0];
 
   return (
     <section className={styles.directory} aria-label={lang === "th" ? "วิธีดู Robot Model" : "Robot model views"}>
+      <div className={styles.hriBanner}>
+        <div className={styles.hriBannerCopy}>
+          <strong><Compass aria-hidden="true" size={16} />{t.hriBannerTitle}</strong>
+          <p>{t.hriBannerDesc}</p>
+        </div>
+        {featuredRobot ? (
+          <Link
+            className={styles.hriBannerCta}
+            href={`/robots/${featuredRobot.id}/hri-lab`}
+          >
+            <Play aria-hidden="true" size={13} />
+            {lang === "th" ? `เปิดทดลอง HRI (${featuredRobot.canonicalName})` : `Launch HRI Lab (${featuredRobot.canonicalName})`}
+          </Link>
+        ) : null}
+      </div>
+
       <div className={styles.controlBar}>
         <div className={styles.viewTabs} aria-label={lang === "th" ? "รูปแบบการจัดกลุ่ม Robot Model" : "Robot model grouping"} role="tablist">
           {([
@@ -248,14 +276,13 @@ export default function RobotDirectory({ lang, robots, initialQuery = "" }: Prop
           <div className={styles.orderedView}>
             <header className={styles.orderedHeader}>
               <div>
-                <span className={styles.groupEyebrow}>{view === "latest" ? t.latest : t.activity}</span>
                 <h2>{view === "latest" ? t.latest : t.popular}</h2>
                 <p>{viewCopy}</p>
               </div>
               <strong>{orderedRobots.length} <small>{orderedRobots.length === 1 ? t.model : t.models}</small></strong>
             </header>
             <div className={styles.robotGrid}>
-              {orderedRobots.map((robot, index) => (
+              {orderedRobots.map((robot) => (
                 <div className={styles.rankedCard} key={robot.id}>
                   <span className={styles.rank}>{view === "latest" ? <><Clock3 aria-hidden="true" size={14} />{dateLabel(robot.updatedAt, lang)}</> : <><Flame aria-hidden="true" size={14} />{activityScore(robot)} {t.activity}</>}</span>
                   <RobotCard lang={lang} robot={robot} />

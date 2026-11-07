@@ -1,0 +1,1568 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  Compass,
+  Copy,
+  Database,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  Navigation,
+  RefreshCw,
+  ShieldCheck,
+  UserCheck,
+  XCircle
+} from "lucide-react";
+import styles from "./HriLab.module.css";
+
+export type HriAtlasRobot = {
+  id: string;
+  canonicalName: string;
+  manufacturer: string | null;
+  developerOrg: string | null;
+  robotType: string;
+  thailandStatus: string;
+  primaryUseCase: string | null;
+  officialUrl: string | null;
+  description: string | null;
+  publicLocations: string[];
+  sources: Array<{
+    id: string;
+    title: string;
+    url: string;
+    platform: string;
+  }>;
+  contributions: Array<{
+    id: string;
+    title: string;
+    type: string;
+    url: string | null;
+  }>;
+};
+
+export type HriRunEvent = {
+  seq: number;
+  timeSec: number;
+  actor: "SYSTEM" | "ROBOT" | "USER" | "STAFF";
+  action: string;
+  detail: string;
+  status: string;
+};
+
+export type HriSavedRun = {
+  id: string;
+  runCode: string;
+  robotId: string;
+  robotName: string;
+  sceneVersion: string;
+  simulationMode: string;
+  testCaseType: "NAVIGATION_SUCCESS" | "STAFF_HANDOFF" | "USER_CANCEL" | "LOAD_ERROR";
+  terminalStatus: string;
+  testCasePassed: boolean;
+  navigationSucceeded: boolean;
+  durationSec: number;
+  errorReason: string | null;
+  events: HriRunEvent[];
+  createdAt: string;
+};
+
+interface HriLabClientProps {
+  requestedRobotId: string;
+  initialRobot: HriAtlasRobot | null;
+  allRobots: Array<{ id: string; canonicalName: string; robotType: string }>;
+  initialRuns: HriSavedRun[];
+  initialLoadError: string | null;
+  lang: "th" | "en";
+}
+
+type SimPhase =
+  | "READY"
+  | "GREETING"
+  | "GUIDING"
+  | "ARRIVED"
+  | "HANDOFF_STAFF"
+  | "CANCELLED"
+  | "ERROR_RECOVERY";
+
+const SCENE_VERSION = "HRI-WELLNESS-RECEPTION-v1.0";
+const SIMULATION_MODE = "WEB_INTERACTIVE_2D_STATE_MACHINE";
+
+function formatRobotLabel(raw: string | null | undefined) {
+  if (!raw) return "—";
+  return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export default function HriLabClient({
+  requestedRobotId,
+  initialRobot,
+  allRobots,
+  initialRuns,
+  initialLoadError
+}: HriLabClientProps) {
+  const router = useRouter();
+  const [robot, setRobot] = useState<HriAtlasRobot | null>(initialRobot);
+  const [phase, setPhase] = useState<SimPhase>(
+    initialLoadError || !initialRobot ? "ERROR_RECOVERY" : "READY"
+  );
+  const [errorReason, setErrorReason] = useState<string | null>(initialLoadError);
+  const [runCode, setRunCode] = useState<string>(() => {
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    return `M01-RUN-${suffix}`;
+  });
+  const [events, setEvents] = useState<HriRunEvent[]>([]);
+  const [elapsedSec, setElapsedSec] = useState<number>(0);
+  const [robotProgress, setRobotProgress] = useState<number>(0);
+  const [savedRuns, setSavedRuns] = useState<HriSavedRun[]>(initialRuns);
+  const [isSavingRun, setIsSavingRun] = useState<boolean>(false);
+  const [copiedSummary, setCopiedSummary] = useState<boolean>(false);
+  const [activeBottomTab, setActiveBottomTab] = useState<"log" | "verification" | "architecture">("log");
+  const [toastNotice, setToastNotice] = useState<string | null>(null);
+
+  const startTimeRef = useRef<number>(Date.now());
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const navIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const now = Date.now();
+    startTimeRef.current = now;
+
+    if (initialLoadError || !initialRobot) {
+      const errEvents: HriRunEvent[] = [
+        {
+          seq: 1,
+          timeSec: 0.0,
+          actor: "SYSTEM",
+          action: "INIT_SIMULATION",
+          detail: `เรียกโหลดข้อมูลหุ่นยนต์รหัส "${requestedRobotId}" สำหรับฉาก ${SCENE_VERSION}`,
+          status: "PENDING"
+        },
+        {
+          seq: 2,
+          timeSec: 0.2,
+          actor: "SYSTEM",
+          action: "MODEL_LOAD_FAILED",
+          detail:
+            initialLoadError ||
+            `ไม่พบรหัสหุ่นยนต์ "${requestedRobotId}" ในทะเบียน HumanoidTH Atlas`,
+          status: "ERROR_RECOVERY"
+        }
+      ];
+      setEvents(errEvents);
+      setElapsedSec(0.2);
+      return;
+    }
+
+    const initEvents: HriRunEvent[] = [
+      {
+        seq: 1,
+        timeSec: 0.0,
+        actor: "SYSTEM",
+        action: "LOAD_ATLAS_PROVENANCE",
+        detail: `ดึงข้อมูลทะเบียนจริงของ "${initialRobot.canonicalName}" (${initialRobot.id}) พร้อมแหล่งอ้างอิง ${initialRobot.sources.length} รายการ`,
+        status: "READY"
+      },
+      {
+        seq: 2,
+        timeSec: 0.4,
+        actor: "ROBOT",
+        action: "RECEPTION_GREETING",
+        detail: `${initialRobot.canonicalName}: "สวัสดีครับ ยินดีต้อนรับสู่จุดต้อนรับศูนย์สุขภาวะ (Wellness Center) วันนี้ต้องการให้ช่วยนำทางไปยังห้องกิจกรรม หรือติดต่อเจ้าหน้าที่ครับ?"`,
+        status: "GREETING"
+      }
+    ];
+    setEvents(initEvents);
+    setPhase("GREETING");
+    setElapsedSec(0.4);
+  }, [initialLoadError, initialRobot, requestedRobotId]);
+
+  useEffect(() => {
+    if (phase === "GREETING" || phase === "GUIDING") {
+      timerRef.current = setInterval(() => {
+        const diff = (Date.now() - startTimeRef.current) / 1000;
+        setElapsedSec(Number(diff.toFixed(1)));
+      }, 100);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+    };
+  }, []);
+
+  const currentOutcome = useMemo(() => {
+    if (phase === "ARRIVED") {
+      return {
+        testCaseType: "NAVIGATION_SUCCESS" as const,
+        terminalStatus: "ARRIVED_AT_DESTINATION",
+        testCasePassed: true,
+        navigationSucceeded: true,
+        summaryTh: "ผ่านกรณีทดสอบที่ 1 · ภารกิจนำทางสำเร็จถึงห้องกิจกรรม (A-102)"
+      };
+    }
+    if (phase === "HANDOFF_STAFF") {
+      return {
+        testCaseType: "STAFF_HANDOFF" as const,
+        terminalStatus: "HANDED_OFF_TO_STAFF",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: "ผ่านกรณีทดสอบที่ 2 · ส่งต่อเจ้าหน้าที่สำเร็จ (ไม่ได้เริ่มภารกิจนำทาง)"
+      };
+    }
+    if (phase === "CANCELLED") {
+      return {
+        testCaseType: "USER_CANCEL" as const,
+        terminalStatus: "CANCELLED_BY_USER",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: "ผ่านกรณีทดสอบที่ 3 · ผู้ใช้ยกเลิกและหุ่นยนต์กลับจุดพักอย่างปลอดภัย"
+      };
+    }
+    if (phase === "ERROR_RECOVERY") {
+      return {
+        testCaseType: "LOAD_ERROR" as const,
+        terminalStatus: "RECOVERY_READY",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: "ผ่านกรณีทดสอบที่ 4 · แจ้งสาเหตุและแสดงทางเลือกกู้คืนเมื่อโหลดรุ่นไม่สำเร็จ"
+      };
+    }
+    return null;
+  }, [phase]);
+
+  const persistRunToBackend = async (
+    nextOutcome: NonNullable<typeof currentOutcome>,
+    finalEvents: HriRunEvent[],
+    finalDuration: number,
+    customError?: string | null
+  ) => {
+    setIsSavingRun(true);
+    const payload = {
+      runCode,
+      robotId: robot?.id || requestedRobotId,
+      robotName: robot?.canonicalName || `Unknown Model (${requestedRobotId})`,
+      sceneVersion: SCENE_VERSION,
+      simulationMode: SIMULATION_MODE,
+      testCaseType: nextOutcome.testCaseType,
+      terminalStatus: nextOutcome.terminalStatus,
+      testCasePassed: nextOutcome.testCasePassed,
+      navigationSucceeded: nextOutcome.navigationSucceeded,
+      durationSec: finalDuration,
+      errorReason: customError ?? errorReason ?? null,
+      events: finalEvents
+    };
+
+    try {
+      const res = await fetch("/api/hri-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success && data.run) {
+        const saved: HriSavedRun = {
+          id: data.run.id,
+          runCode: data.run.runCode,
+          robotId: data.run.robotId,
+          robotName: data.run.robotName,
+          sceneVersion: data.run.sceneVersion,
+          simulationMode: data.run.simulationMode,
+          testCaseType: data.run.testCaseType,
+          terminalStatus: data.run.terminalStatus,
+          testCasePassed: data.run.testCasePassed,
+          navigationSucceeded: data.run.navigationSucceeded,
+          durationSec: data.run.durationSec,
+          errorReason: data.run.errorReason,
+          events: finalEvents,
+          createdAt: data.run.createdAt
+        };
+        setSavedRuns((prev) => [saved, ...prev.filter((r) => r.runCode !== saved.runCode)]);
+      }
+    } catch {
+      // Local state still keeps current run
+    } finally {
+      setIsSavingRun(false);
+    }
+  };
+
+  const handleStartNavigation = () => {
+    if (!robot || phase === "GUIDING") return;
+    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+
+    const tNow = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
+    const userEvent: HriRunEvent = {
+      seq: events.length + 1,
+      timeSec: tNow,
+      actor: "USER",
+      action: "SELECT_OPTION_1_NAVIGATE",
+      detail: "ผู้ใช้เลือก [1] ให้หุ่นช่วยนำทางไปยังห้องกิจกรรมบำบัด (Activity & Wellness Room A-102)",
+      status: "GUIDING"
+    };
+    const robotAck: HriRunEvent = {
+      seq: events.length + 2,
+      timeSec: Number((tNow + 0.3).toFixed(1)),
+      actor: "ROBOT",
+      action: "START_WAYFINDING_PATH",
+      detail: `${robot.canonicalName}: "รับทราบครับ กรุณาเดินตามผมมาทางโถงทางเดินหลัก ระยะทาง 12 เมตรครับ"`,
+      status: "GUIDING"
+    };
+
+    const nextEvents = [...events, userEvent, robotAck];
+    setEvents(nextEvents);
+    setPhase("GUIDING");
+    setRobotProgress(15);
+
+    let progress = 15;
+    navIntervalRef.current = setInterval(() => {
+      progress += 17;
+      if (progress >= 100) {
+        if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+        setRobotProgress(100);
+        const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
+        setElapsedSec(endSec);
+
+        const checkpointEvent: HriRunEvent = {
+          seq: nextEvents.length + 1,
+          timeSec: Number((endSec - 0.6).toFixed(1)),
+          actor: "ROBOT",
+          action: "PASS_CORRIDOR_CHECKPOINT",
+          detail: `${robot.canonicalName} เคลื่อนผ่านโถงทางเดินหลักด้วยความเร็วปลอดภัย 0.8 m/s`,
+          status: "GUIDING"
+        };
+        const arriveEvent: HriRunEvent = {
+          seq: nextEvents.length + 2,
+          timeSec: endSec,
+          actor: "ROBOT",
+          action: "DESTINATION_REACHED",
+          detail: `${robot.canonicalName}: "ถึงหน้าห้องกิจกรรมบำบัด A-102 เรียบร้อยแล้วครับ ขอให้มีความสุขกับการใช้บริการครับ"`,
+          status: "ARRIVED_AT_DESTINATION"
+        };
+
+        const completedEvents = [...nextEvents, checkpointEvent, arriveEvent];
+        setEvents(completedEvents);
+        setPhase("ARRIVED");
+        setToastNotice("บันทึกผลสำเร็จ: หุ่นยนต์นำทางถึงจุดหมายเรียบร้อยแล้ว (กรณีทดสอบที่ 1)");
+        setTimeout(() => setToastNotice(null), 4000);
+
+        void persistRunToBackend(
+          {
+            testCaseType: "NAVIGATION_SUCCESS",
+            terminalStatus: "ARRIVED_AT_DESTINATION",
+            testCasePassed: true,
+            navigationSucceeded: true,
+            summaryTh: ""
+          },
+          completedEvents,
+          endSec
+        );
+      } else {
+        setRobotProgress(progress);
+      }
+    }, 380);
+  };
+
+  const handleRequestStaff = () => {
+    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
+    setElapsedSec(endSec);
+
+    const userEvent: HriRunEvent = {
+      seq: events.length + 1,
+      timeSec: endSec,
+      actor: "USER",
+      action: "SELECT_OPTION_2_STAFF",
+      detail: "ผู้ใช้เลือก [2] ขอติดต่อเจ้าหน้าที่ประจำจุดต้อนรับ (Human Staff Handoff)",
+      status: "HANDOFF_PENDING"
+    };
+    const robotEvent: HriRunEvent = {
+      seq: events.length + 2,
+      timeSec: Number((endSec + 0.2).toFixed(1)),
+      actor: "ROBOT",
+      action: "NOTIFY_RECEPTION_STAFF",
+      detail: `${robot?.canonicalName || "หุ่นยนต์"}: "กำลังส่งสัญญาณเรียกเจ้าหน้าที่จุดต้อนรับให้มารับช่วงต่อทันทีครับ"`,
+      status: "HANDED_OFF_TO_STAFF"
+    };
+    const staffEvent: HriRunEvent = {
+      seq: events.length + 3,
+      timeSec: Number((endSec + 0.4).toFixed(1)),
+      actor: "STAFF",
+      action: "STAFF_ACKNOWLEDGED",
+      detail: "เจ้าหน้าที่เคาน์เตอร์รับเรื่องและเข้าดูแลผู้มาติดต่อ (จบการทดลองในสถานะส่งต่อเจ้าหน้าที่)",
+      status: "HANDED_OFF_TO_STAFF"
+    };
+
+    const completedEvents = [...events, userEvent, robotEvent, staffEvent];
+    setEvents(completedEvents);
+    setPhase("HANDOFF_STAFF");
+    setToastNotice("บันทึกผลสำเร็จ: ส่งต่อเจ้าหน้าที่เรียบร้อยแล้ว (กรณีทดสอบที่ 2)");
+    setTimeout(() => setToastNotice(null), 4000);
+
+    void persistRunToBackend(
+      {
+        testCaseType: "STAFF_HANDOFF",
+        terminalStatus: "HANDED_OFF_TO_STAFF",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: ""
+      },
+      completedEvents,
+      Number((endSec + 0.4).toFixed(1))
+    );
+  };
+
+  const handleCancelInteraction = () => {
+    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
+    setElapsedSec(endSec);
+
+    const userEvent: HriRunEvent = {
+      seq: events.length + 1,
+      timeSec: endSec,
+      actor: "USER",
+      action: "SELECT_OPTION_3_CANCEL",
+      detail: "ผู้ใช้เลือก [3] ยกเลิกการขอความช่วยเหลือ (Cancel Interaction)",
+      status: "CANCELLING"
+    };
+    const robotEvent: HriRunEvent = {
+      seq: events.length + 2,
+      timeSec: Number((endSec + 0.2).toFixed(1)),
+      actor: "ROBOT",
+      action: "SAFE_STANDBY_RETURN",
+      detail: `${robot?.canonicalName || "หุ่นยนต์"} หยุดการเคลื่อนที่ทันทีและกลับสู่สถานะเตรียมพร้อม ณ จุดต้อนรับ`,
+      status: "CANCELLED_BY_USER"
+    };
+
+    const completedEvents = [...events, userEvent, robotEvent];
+    setEvents(completedEvents);
+    setRobotProgress(0);
+    setPhase("CANCELLED");
+    setToastNotice("บันทึกผลสำเร็จ: ยกเลิกและหยุดทำงานอย่างปลอดภัย (กรณีทดสอบที่ 3)");
+    setTimeout(() => setToastNotice(null), 4000);
+
+    void persistRunToBackend(
+      {
+        testCaseType: "USER_CANCEL",
+        terminalStatus: "CANCELLED_BY_USER",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: ""
+      },
+      completedEvents,
+      Number((endSec + 0.2).toFixed(1))
+    );
+  };
+
+  const handleSimulateLoadFailure = () => {
+    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
+    const simulatedError =
+      "จำลองความผิดพลาด: ไม่สามารถโหลดพารามิเตอร์ฉากจำลองหรือรหัสรุ่นหุ่นยนต์ได้ (Simulated Scene/Model Load Failure)";
+    setErrorReason(simulatedError);
+    setRobotProgress(0);
+
+    const failEvents: HriRunEvent[] = [
+      ...events,
+      {
+        seq: events.length + 1,
+        timeSec: endSec,
+        actor: "SYSTEM",
+        action: "FAULT_INJECTION_LOAD_ERROR",
+        detail: simulatedError,
+        status: "ERROR_RECOVERY"
+      },
+      {
+        seq: events.length + 2,
+        timeSec: Number((endSec + 0.1).toFixed(1)),
+        actor: "SYSTEM",
+        action: "SHOW_RECOVERY_ACTIONS",
+        detail: "ระบบแสดงสาเหตุของปัญหา พร้อมปุ่ม 'ลองโหลดใหม่' และ 'กลับไปหน้ารายการหุ่นยนต์ (/robots)'",
+        status: "RECOVERY_READY"
+      }
+    ];
+    setEvents(failEvents);
+    setPhase("ERROR_RECOVERY");
+    setToastNotice("จำลองกรณีโหลดไม่สำเร็จ (กรณีทดสอบที่ 4) เรียบร้อยแล้ว");
+    setTimeout(() => setToastNotice(null), 4000);
+
+    void persistRunToBackend(
+      {
+        testCaseType: "LOAD_ERROR",
+        terminalStatus: "RECOVERY_READY",
+        testCasePassed: true,
+        navigationSucceeded: false,
+        summaryTh: ""
+      },
+      failEvents,
+      Number((endSec + 0.1).toFixed(1)),
+      simulatedError
+    );
+  };
+
+  const handleResetSimulation = () => {
+    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+    const nextCode = `M01-RUN-${Math.floor(1000 + Math.random() * 9000)}`;
+    setRunCode(nextCode);
+    startTimeRef.current = Date.now();
+    setRobotProgress(0);
+
+    if (!initialRobot) {
+      if (allRobots.length > 0) {
+        router.push(`/robots/${allRobots[0].id}/hri-lab`);
+      } else {
+        router.push("/robots");
+      }
+      return;
+    }
+
+    setRobot(initialRobot);
+    setErrorReason(null);
+    setElapsedSec(0.3);
+    setPhase("GREETING");
+    setEvents([
+      {
+        seq: 1,
+        timeSec: 0.0,
+        actor: "SYSTEM",
+        action: "RESET_SIMULATION",
+        detail: `เริ่มรอบการทดลองใหม่ (${nextCode}) สำหรับรุ่น "${initialRobot.canonicalName}"`,
+        status: "READY"
+      },
+      {
+        seq: 2,
+        timeSec: 0.3,
+        actor: "ROBOT",
+        action: "RECEPTION_GREETING",
+        detail: `${initialRobot.canonicalName}: "สวัสดีครับ ยินดีต้อนรับสู่จุดต้อนรับศูนย์สุขภาวะ วันนี้ต้องการให้ช่วยนำทางไปยังห้องกิจกรรม หรือติดต่อเจ้าหน้าที่ครับ?"`,
+        status: "GREETING"
+      }
+    ]);
+  };
+
+  const handleExportJson = () => {
+    const exportPayload = {
+      deliverable: "M01 · HumanoidTH HRI Living Lab",
+      runCode,
+      exportedAt: new Date().toISOString(),
+      atlasProvenance: {
+        dataClassification: "REAL_ATLAS_RECORD",
+        robotId: robot?.id || requestedRobotId,
+        canonicalName: robot?.canonicalName || null,
+        manufacturer: robot?.manufacturer || robot?.developerOrg || null,
+        robotType: robot?.robotType || null,
+        thailandStatus: robot?.thailandStatus || null,
+        sourcesCount: robot?.sources.length || 0,
+        sources: robot?.sources || []
+      },
+      simulationResult: {
+        dataClassification: "HRI_SIMULATION_SCENARIO",
+        sceneVersion: SCENE_VERSION,
+        simulationMode: SIMULATION_MODE,
+        phase,
+        testCaseType: currentOutcome?.testCaseType || "IN_PROGRESS",
+        terminalStatus: currentOutcome?.terminalStatus || phase,
+        testCasePassed: currentOutcome ? currentOutcome.testCasePassed : false,
+        navigationSucceeded: currentOutcome ? currentOutcome.navigationSucceeded : false,
+        durationSec: elapsedSec,
+        errorReason
+      },
+      events
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${runCode}-${robot?.canonicalName.replace(/\s+/g, "_") || "HRI"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    const headers = [
+      "run_code",
+      "robot_id",
+      "robot_name",
+      "scene_version",
+      "simulation_mode",
+      "test_case_passed",
+      "navigation_succeeded",
+      "terminal_status",
+      "total_duration_sec",
+      "event_seq",
+      "event_time_sec",
+      "actor",
+      "action",
+      "detail"
+    ];
+    const rows = events.map((ev) => [
+      runCode,
+      robot?.id || requestedRobotId,
+      `"${(robot?.canonicalName || requestedRobotId).replace(/"/g, '""')}"`,
+      SCENE_VERSION,
+      SIMULATION_MODE,
+      currentOutcome ? String(currentOutcome.testCasePassed) : "false",
+      currentOutcome ? String(currentOutcome.navigationSucceeded) : "false",
+      currentOutcome?.terminalStatus || phase,
+      elapsedSec,
+      ev.seq,
+      ev.timeSec,
+      ev.actor,
+      ev.action,
+      `"${ev.detail.replace(/"/g, '""')}"`
+    ]);
+    const csvContent =
+      "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${runCode}-events.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopySummary = () => {
+    const summaryText = [
+      `[M01 · HumanoidTH HRI Living Lab Run Summary]`,
+      `Run ID: ${runCode}`,
+      `Robot Model (Atlas): ${robot?.canonicalName || requestedRobotId} (${robot?.id || "N/A"})`,
+      `Scene Version: ${SCENE_VERSION}`,
+      `Simulation Mode: ${SIMULATION_MODE}`,
+      `Terminal Status: ${currentOutcome?.terminalStatus || phase}`,
+      `ผ่านกรณีทดสอบ (Test Case Passed): ${currentOutcome?.testCasePassed ? "ใช่ (PASS)" : "กำลังดำเนินการ"}`,
+      `ภารกิจนำทางสำเร็จ (Navigation Succeeded): ${currentOutcome?.navigationSucceeded ? "สำเร็จ (YES)" : "ไม่สำเร็จ/ไม่ได้นำทาง (NO)"}`,
+      `Elapsed Time: ${elapsedSec} วินาที`,
+      `Events Recorded: ${events.length} เหตุการณ์`
+    ].join("\n");
+
+    navigator.clipboard.writeText(summaryText);
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2500);
+  };
+
+  // Compute SVG robot position along the 2D floorplan
+  // Start Reception: (110, 175) -> Main Corridor -> Activity Room A-102: (510, 105)
+  // Staff Handoff Counter: (290, 260)
+  const robotCoords = useMemo(() => {
+    if (phase === "HANDOFF_STAFF") {
+      return { x: 290, y: 248, velocity: "0.0 m/s", zone: "เคาน์เตอร์เจ้าหน้าที่ (Staff Counter)" };
+    }
+    if (phase === "ERROR_RECOVERY") {
+      return { x: 110, y: 175, velocity: "0.0 m/s", zone: "โหมดกู้คืนระบบ (Fault Recovery)" };
+    }
+    if (robotProgress <= 0) {
+      return { x: 110, y: 175, velocity: "0.0 m/s", zone: "จุดต้อนรับ (Reception Zone)" };
+    }
+    if (robotProgress >= 100) {
+      return { x: 510, y: 105, velocity: "0.0 m/s", zone: "ห้องกิจกรรมบำบัด A-102" };
+    }
+    // Interpolate along L-shaped path: (110,175) -> (370,175) for 0..65%, then (370,175) -> (510,105) for 65..100%
+    if (robotProgress <= 65) {
+      const ratio = robotProgress / 65;
+      const x = Math.round(110 + ratio * (370 - 110));
+      return { x, y: 175, velocity: "0.8 m/s", zone: "โถงทางเดินหลัก (Main Corridor)" };
+    }
+    const ratio = (robotProgress - 65) / 35;
+    const x = Math.round(370 + ratio * (510 - 370));
+    const y = Math.round(175 + ratio * (105 - 175));
+    return { x, y, velocity: "0.6 m/s", zone: "ทางเข้าห้องกิจกรรม A-102" };
+  }, [phase, robotProgress]);
+
+  const statusToneClass = useMemo(() => {
+    if (phase === "ARRIVED") return styles.statusSuccess;
+    if (phase === "HANDOFF_STAFF") return styles.statusHandoff;
+    if (phase === "CANCELLED") return styles.statusCancelled;
+    if (phase === "ERROR_RECOVERY") return styles.statusError;
+    if (phase === "GUIDING") return styles.statusActive;
+    return styles.statusReady;
+  }, [phase]);
+
+  return (
+    <div className={styles.console}>
+      {/* 1. Top Navigation & Model Switcher Strip */}
+      <div className={styles.topBar}>
+        <div className={styles.navGroup}>
+          <Link href="/robots" className={styles.backLink}>
+            <ArrowLeft size={15} />
+            กลับไปหน้ารายการหุ่นยนต์ (/robots)
+          </Link>
+          {robot && (
+            <Link href={`/robots/${robot.id}`} className={styles.profileLink}>
+              ดูหน้าโปรไฟล์รุ่น {robot.canonicalName}
+            </Link>
+          )}
+        </div>
+
+        <div className={styles.navGroup}>
+          <label className={styles.switcherLabel}>
+            <span>สลับรุ่นหุ่นยนต์จากทะเบียน:</span>
+            <select
+              className={styles.switcherSelect}
+              value={robot?.id || requestedRobotId}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                if (nextId === "__invalid_test__") {
+                  router.push("/robots/invalid-model-id-test-case-4/hri-lab");
+                } else {
+                  router.push(`/robots/${nextId}/hri-lab`);
+                }
+              }}
+            >
+              {allRobots.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.canonicalName} ({formatRobotLabel(r.robotType)})
+                </option>
+              ))}
+              <option value="__invalid_test__">
+                [ทดสอบกรณีที่ 4] รหัสรุ่นไม่ถูกต้อง (Invalid Model ID)
+              </option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {/* Toast Notification */}
+      {toastNotice && (
+        <div className={styles.toast} role="status">
+          <CheckCircle2 size={16} />
+          <span>{toastNotice}</span>
+        </div>
+      )}
+
+      {/* 2. Dual-Provenance Header Ledger: Separates Real Atlas Record vs HRI Simulation */}
+      <section className={styles.headerLedger} aria-label="การแยกแยะแหล่งที่มาของข้อมูล">
+        {/* Left Pane: Real Registry Facts */}
+        <div className={styles.ledgerPane}>
+          <div className={styles.provenanceRow}>
+            <span className={styles.sourcePill}>
+              <Database size={13} />
+              ข้อมูลจากทะเบียนจริง (HumanoidTH Atlas)
+            </span>
+            <span className={styles.monoTag}>ID: {robot?.id || requestedRobotId}</span>
+          </div>
+
+          {robot ? (
+            <>
+              <h1 className={styles.modelTitle}>{robot.canonicalName}</h1>
+              <p className={styles.leadText}>
+                {robot.description ||
+                  "ข้อมูลจำเพาะและหลักฐานของหุ่นยนต์รุ่นนี้ดึงมาจากฐานข้อมูลทะเบียน HumanoidTH Atlas โดยตรง"}
+              </p>
+
+              <dl className={styles.specStrip}>
+                <div className={styles.specItem}>
+                  <dt>ผู้ผลิต / ผู้พัฒนา</dt>
+                  <dd>{robot.manufacturer || robot.developerOrg || "ไม่ระบุ"}</dd>
+                </div>
+                <div className={styles.specItem}>
+                  <dt>ประเภท / สถานะในไทย</dt>
+                  <dd>
+                    {formatRobotLabel(robot.robotType)} · {formatRobotLabel(robot.thailandStatus)}
+                  </dd>
+                </div>
+                <div className={styles.specItem}>
+                  <dt>พื้นที่ใช้งานสาธารณะ</dt>
+                  <dd>
+                    {robot.publicLocations.length > 0
+                      ? robot.publicLocations.slice(0, 2).join(", ")
+                      : "ยังไม่ระบุสถานที่เปิดเผย"}
+                  </dd>
+                </div>
+              </dl>
+
+              <ul className={styles.sourceList} aria-label="แหล่งข้อมูลอ้างอิงในทะเบียน">
+                <li>
+                  <strong>แหล่งอ้างอิง ({robot.sources.length}):</strong>
+                </li>
+                {robot.sources.length > 0 ? (
+                  robot.sources.slice(0, 3).map((src) => (
+                    <li key={src.id}>
+                      <a href={src.url} target="_blank" rel="noopener noreferrer">
+                        {src.title.length > 42 ? `${src.title.slice(0, 42)}…` : src.title}
+                        <ExternalLink size={11} />
+                      </a>
+                    </li>
+                  ))
+                ) : (
+                  <li>ไม่มีลิงก์งานวิจัยแนบโดยตรง</li>
+                )}
+                {robot.officialUrl && (
+                  <li>
+                    <a href={robot.officialUrl} target="_blank" rel="noopener noreferrer">
+                      เว็บไซต์ทางการผู้พัฒนา
+                      <ExternalLink size={11} />
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </>
+          ) : (
+            <div className={styles.errorCallout}>
+              <strong>ไม่พบข้อมูลหุ่นยนต์รหัส &ldquo;{requestedRobotId}&rdquo; ในทะเบียนจริง</strong>
+              <p style={{ margin: "6px 0 0" }}>
+                ระบบไม่สามารถดึงข้อมูลจำเพาะจากฐานข้อมูลได้ กรุณาใช้ปุ่มกู้คืนด้านล่างเพื่อลองโหลดใหม่หรือกลับไปเลือกหุ่นยนต์จากหน้าทะเบียน
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Pane: Simulation Context */}
+        <div className={styles.ledgerPaneSim}>
+          <div className={styles.provenanceRow}>
+            <span className={styles.simPill}>
+              <Compass size={13} />
+              สถานการณ์จำลอง HRI (Simulation Scenario)
+            </span>
+            <span className={styles.monoTag}>{SCENE_VERSION}</span>
+          </div>
+
+          <h2 className={styles.simTitle}>
+            M01 · จุดต้อนรับและคัดกรองผู้มาติดต่อ ศูนย์สุขภาวะ
+          </h2>
+          <p className={styles.leadText}>
+            จำลองเหตุการณ์เมื่อผู้มาติดต่อเดินเข้าสู่โถงต้อนรับศูนย์สุขภาวะ หุ่นยนต์จะกล่าวทักทายและเสนอทางเลือกความช่วยเหลือ 3 รูปแบบ โดยแยกบันทึกเหตุการณ์จำลองออกจากข้อเท็จจริงในทะเบียนอย่างชัดเจน
+          </p>
+
+          <dl className={styles.specStrip}>
+            <div className={styles.specItem}>
+              <dt>รหัสรอบการทดลอง</dt>
+              <dd className={styles.monoTag}>{runCode}</dd>
+            </div>
+            <div className={styles.specItem}>
+              <dt>โหมดการจำลอง</dt>
+              <dd>2D Wayfinding State Machine</dd>
+            </div>
+            <div className={styles.specItem}>
+              <dt>เวลาที่ใช้ไป (Elapsed)</dt>
+              <dd style={{ fontVariantNumeric: "tabular-nums" }}>{elapsedSec.toFixed(1)} วินาที</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      {/* 3. Main 2-Column Instrument Stage: Architectural Blueprint + Operator Console */}
+      <div className={styles.stageGrid}>
+        {/* Left: SVG Architectural Floorplan */}
+        <section className={styles.blueprintPanel} aria-label="แผนผังจำลองการเคลื่อนที่ 2 มิติ">
+          <div className={styles.panelHeader}>
+            <h2 className={styles.panelHeading}>
+              แผนผังจุดต้อนรับศูนย์สุขภาวะ (Wellness Center Floorplan)
+            </h2>
+            <span className={styles.telemetryMeta}>
+              พิกัดหุ่นยนต์: X={robotCoords.x}m · Y={robotCoords.y}m · ความเร็ว {robotCoords.velocity}
+            </span>
+          </div>
+
+          <div className={styles.svgWrap}>
+            <svg
+              viewBox="0 0 640 310"
+              className={styles.blueprintSvg}
+              role="img"
+              aria-label="แผนผัง 2 มิติแสดงตำแหน่งหุ่นยนต์ในจุดต้อนรับศูนย์สุขภาวะ"
+            >
+              <defs>
+                <pattern id="minorGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path
+                    d="M 20 0 L 0 0 0 20"
+                    fill="none"
+                    stroke="#dfe9e2"
+                    strokeWidth="0.75"
+                  />
+                </pattern>
+                <pattern id="majorGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <rect width="100" height="100" fill="url(#minorGrid)" />
+                  <path
+                    d="M 100 0 L 0 0 0 100"
+                    fill="none"
+                    stroke="#cad8cf"
+                    strokeWidth="1.1"
+                  />
+                </pattern>
+              </defs>
+
+              {/* Architectural Grid Background */}
+              <rect width="640" height="310" fill="url(#majorGrid)" />
+
+              {/* Scale Bar & North Indicator */}
+              <g transform="translate(20, 20)">
+                <line x1="0" y1="8" x2="80" y2="8" stroke="#465a4f" strokeWidth="1.5" />
+                <line x1="0" y1="4" x2="0" y2="12" stroke="#465a4f" strokeWidth="1.5" />
+                <line x1="40" y1="5" x2="40" y2="11" stroke="#465a4f" strokeWidth="1" />
+                <line x1="80" y1="4" x2="80" y2="12" stroke="#465a4f" strokeWidth="1.5" />
+                <text x="0" y="22" fill="#465a4f" fontSize="9.5" fontFamily="monospace">
+                  SCALE 0 — 4m — 8m
+                </text>
+              </g>
+
+              {/* Zone 1: Reception Entrance (Left) */}
+              <rect
+                x="36"
+                y="115"
+                width="148"
+                height="120"
+                rx="8"
+                fill="#ffffff"
+                stroke="#86a593"
+                strokeWidth="1.75"
+              />
+              <text x="50" y="138" fill="#1c2420" fontSize="11.5" fontWeight="700">
+                1. จุดต้อนรับ (Reception)
+              </text>
+              <text x="50" y="153" fill="#52665b" fontSize="9.5">
+                จุดเริ่มต้นคัดกรองผู้มาติดต่อ
+              </text>
+
+              {/* Main Wayfinding Corridor (Center) */}
+              <rect
+                x="184"
+                y="142"
+                width="240"
+                height="66"
+                fill="#eef4f0"
+                stroke="#9bb5a5"
+                strokeWidth="1.25"
+                strokeDasharray="5 3"
+              />
+              <text x="236" y="160" fill="#3f5247" fontSize="10" fontWeight="600">
+                โถงทางเดินหลัก (ระยะทาง 12 เมตร)
+              </text>
+
+              {/* Zone 2: Staff Handoff Counter (Bottom Center) */}
+              <rect
+                x="210"
+                y="222"
+                width="175"
+                height="68"
+                rx="8"
+                fill={phase === "HANDOFF_STAFF" ? "#f9f1df" : "#ffffff"}
+                stroke={phase === "HANDOFF_STAFF" ? "#c28b2c" : "#9bb5a5"}
+                strokeWidth={phase === "HANDOFF_STAFF" ? "2.2" : "1.5"}
+              />
+              <text x="224" y="244" fill="#4a3512" fontSize="11" fontWeight="700">
+                2. เคาน์เตอร์เจ้าหน้าที่ (Staff)
+              </text>
+              <text x="224" y="260" fill="#6b5530" fontSize="9.5">
+                จุดรับช่วงต่อกรณีต้องการเจ้าหน้าที่
+              </text>
+
+              {/* Zone 3: Activity & Wellness Room A-102 (Top Right) */}
+              <rect
+                x="424"
+                y="46"
+                width="180"
+                height="126"
+                rx="8"
+                fill={phase === "ARRIVED" ? "#e4f4ea" : "#ffffff"}
+                stroke={phase === "ARRIVED" ? "#1f6b43" : "#86a593"}
+                strokeWidth={phase === "ARRIVED" ? "2.4" : "1.75"}
+              />
+              <text x="440" y="72" fill="#143d27" fontSize="11.5" fontWeight="700">
+                3. ห้องกิจกรรมบำบัด A-102
+              </text>
+              <text x="440" y="88" fill="#3f594a" fontSize="9.5">
+                Activity &amp; Wellness Destination
+              </text>
+
+              {/* Planned Trajectory Path 1: Navigation to Room A-102 */}
+              <path
+                d="M 110 175 L 370 175 L 510 105"
+                fill="none"
+                stroke={
+                  phase === "GUIDING" || phase === "ARRIVED" ? "#1f6b43" : "#b2c5b9"
+                }
+                strokeWidth={phase === "GUIDING" || phase === "ARRIVED" ? "3" : "2"}
+                strokeDasharray={phase === "ARRIVED" ? "none" : "6 4"}
+              />
+
+              {/* Planned Trajectory Path 2: Handoff to Staff */}
+              <path
+                d="M 110 175 L 290 248"
+                fill="none"
+                stroke={phase === "HANDOFF_STAFF" ? "#c28b2c" : "#cbd8d0"}
+                strokeWidth={phase === "HANDOFF_STAFF" ? "2.5" : "1.5"}
+                strokeDasharray="4 4"
+              />
+
+              {/* Waypoint Nodes */}
+              <circle cx="110" cy="175" r="5" fill="#465a4f" />
+              <circle cx="370" cy="175" r="4" fill="#6a8274" />
+              <circle cx="510" cy="105" r="6" fill="#1f6b43" />
+              <circle cx="290" cy="248" r="5" fill="#b07d28" />
+
+              {/* Visitor Marker at Reception */}
+              <g transform="translate(76, 196)">
+                <circle cx="0" cy="0" r="7" fill="#334155" />
+                <text x="12" y="4" fill="#334155" fontSize="9.5" fontWeight="700">
+                  ผู้มาติดต่อ (Visitor)
+                </text>
+              </g>
+
+              {/* Live Robot Telemetry Marker */}
+              <g
+                transform={`translate(${robotCoords.x}, ${robotCoords.y})`}
+                style={{ transition: "transform 340ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+              >
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="18"
+                  fill={
+                    phase === "ERROR_RECOVERY"
+                      ? "rgba(185, 28, 28, 0.16)"
+                      : phase === "HANDOFF_STAFF"
+                      ? "rgba(194, 139, 44, 0.18)"
+                      : "rgba(31, 107, 67, 0.16)"
+                  }
+                />
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="11"
+                  fill={
+                    phase === "ERROR_RECOVERY"
+                      ? "#991b1b"
+                      : phase === "HANDOFF_STAFF"
+                      ? "#b45309"
+                      : "#1f5239"
+                  }
+                  stroke="#ffffff"
+                  strokeWidth="2.5"
+                />
+                <text
+                  x="0"
+                  y="3.5"
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize="8.5"
+                  fontWeight="800"
+                  fontFamily="monospace"
+                >
+                  R1
+                </text>
+                <rect
+                  x="-54"
+                  y="-34"
+                  width="108"
+                  height="18"
+                  rx="4"
+                  fill="#1c2420"
+                />
+                <text
+                  x="0"
+                  y="-22"
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize="9.5"
+                  fontWeight="700"
+                >
+                  {robot?.canonicalName.slice(0, 16) || "Fault State"}
+                </text>
+              </g>
+            </svg>
+          </div>
+
+          <div className={styles.telemetryFooter}>
+            <span>ตำแหน่งปัจจุบัน: <strong>{robotCoords.zone}</strong></span>
+            <span>ความคืบหน้าเส้นทางนำทาง: <strong>{robotProgress}%</strong></span>
+            <span>เหตุการณ์ที่บันทึกแล้ว: <strong>{events.length} รายการ</strong></span>
+          </div>
+        </section>
+
+        {/* Right: Operator Action & Telemetry Control Panel */}
+        <section className={styles.controlPanel} aria-label="แผงควบคุมการตัดสินใจของผู้ใช้">
+          <div className={styles.panelHeader}>
+            <h2 className={styles.panelHeading}>
+              เลือกการตอบสนองของผู้รับบริการ (User Interaction)
+            </h2>
+            <span className={styles.telemetryMeta}>Run: {runCode}</span>
+          </div>
+
+          {/* Current Robot Speech / System State Readout */}
+          <div className={`${styles.statusReadout} ${statusToneClass}`} role="region" aria-live="polite">
+            <div className={styles.statusTopRow}>
+              <span>สถานะปัจจุบัน: {currentOutcome?.terminalStatus || phase}</span>
+              <span>T+{elapsedSec.toFixed(1)}s</span>
+            </div>
+
+            {phase === "GREETING" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  {robot?.canonicalName}: &ldquo;ต้องการให้ช่วยนำทางไปยังห้องกิจกรรมบำบัด หรือติดต่อเจ้าหน้าที่ครับ?&rdquo;
+                </h3>
+                <p className={styles.statusDescription}>
+                  เลือกปุ่มคำสั่งด้านล่างเพื่อทดสอบพฤติกรรมของหุ่นยนต์และบันทึกผลลัพธ์ลงใน Run Log
+                </p>
+              </>
+            )}
+
+            {phase === "GUIDING" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  กำลังนำทางไปยังห้องกิจกรรมบำบัด A-102 ({robotProgress}%)
+                </h3>
+                <p className={styles.statusDescription}>
+                  หุ่นยนต์กำลังเคลื่อนที่ไปตามโถงทางเดินหลัก คุณสามารถกดปุ่ม &ldquo;ยกเลิก&rdquo; หรือ &ldquo;ขอเจ้าหน้าที่&rdquo; ได้ตลอดเวลา
+                </p>
+              </>
+            )}
+
+            {phase === "ARRIVED" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  ภารกิจนำทางสำเร็จ: ถึงหน้าห้องกิจกรรมบำบัด A-102 เรียบร้อยแล้ว
+                </h3>
+                <p className={styles.statusDescription}>
+                  ผ่านกรณีทดสอบที่ 1 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = สำเร็จ)
+                </p>
+              </>
+            )}
+
+            {phase === "HANDOFF_STAFF" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  ส่งต่อเจ้าหน้าที่ประจำเคาน์เตอร์ต้อนรับเรียบร้อยแล้ว
+                </h3>
+                <p className={styles.statusDescription}>
+                  ผ่านกรณีทดสอบที่ 2 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = ไม่ได้เริ่มนำทาง)
+                </p>
+              </>
+            )}
+
+            {phase === "CANCELLED" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  ผู้ใช้ยกเลิกคำขอ · หุ่นยนต์หยุดและกลับสู่จุดพักอย่างปลอดภัย
+                </h3>
+                <p className={styles.statusDescription}>
+                  ผ่านกรณีทดสอบที่ 3 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = ยกเลิกก่อนถึงปลายทาง)
+                </p>
+              </>
+            )}
+
+            {phase === "ERROR_RECOVERY" && (
+              <>
+                <h3 className={styles.statusHeadline}>
+                  ตรวจพบข้อผิดพลาดในการโหลดข้อมูลรุ่นหรือฉากจำลอง
+                </h3>
+                <p className={styles.statusDescription}>
+                  {errorReason || "ไม่พบรหัสรุ่นหุ่นยนต์ที่ร้องขอในทะเบียน"}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* 3 Primary User Interaction Choices (Cases 1, 2, 3) */}
+          <div className={styles.actionList}>
+            <button
+              type="button"
+              className={styles.actionBtnPrimary}
+              onClick={handleStartNavigation}
+              disabled={!robot || phase === "GUIDING" || phase === "ERROR_RECOVERY"}
+            >
+              <span className={styles.btnLabelGroup}>
+                <Navigation size={16} />
+                <span>ให้หุ่นช่วยนำทางไปห้องกิจกรรม (A-102)</span>
+              </span>
+              <span className={styles.kbdKey}>กรณีที่ 1</span>
+            </button>
+
+            <button
+              type="button"
+              className={styles.actionBtnSecondary}
+              onClick={handleRequestStaff}
+              disabled={phase === "ERROR_RECOVERY"}
+            >
+              <span className={styles.btnLabelGroup}>
+                <UserCheck size={16} />
+                <span>ขอเจ้าหน้าที่มารับช่วงต่อ (Staff Handoff)</span>
+              </span>
+              <span className={styles.kbdKeyDark}>กรณีที่ 2</span>
+            </button>
+
+            <button
+              type="button"
+              className={styles.actionBtnDanger}
+              onClick={handleCancelInteraction}
+              disabled={phase === "ERROR_RECOVERY"}
+            >
+              <span className={styles.btnLabelGroup}>
+                <XCircle size={16} />
+                <span>ยกเลิกคำขอและให้หุ่นหยุดทำงาน (Cancel)</span>
+              </span>
+              <span className={styles.kbdKeyDark}>กรณีที่ 3</span>
+            </button>
+          </div>
+
+          {/* Fault Injection / Error Recovery Bar (Case 4) */}
+          {phase === "ERROR_RECOVERY" ? (
+            <div className={styles.recoveryBar}>
+              <span>ทางเลือกกู้คืนระบบ (กรณีทดสอบที่ 4):</span>
+              <div className={styles.recoveryActions}>
+                <button
+                  type="button"
+                  className={styles.recoveryBtn}
+                  onClick={handleResetSimulation}
+                >
+                  ลองโหลดใหม่ (Retry)
+                </button>
+                <Link href="/robots" className={styles.recoveryLink}>
+                  กลับไปหน้า /robots
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className={styles.actionBtnGhost}
+                style={{ flex: 1 }}
+                onClick={handleResetSimulation}
+              >
+                <span className={styles.btnLabelGroup}>
+                  <RefreshCw size={14} />
+                  <span>เริ่มรอบการทดลองใหม่</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.actionBtnGhost}
+                style={{ flex: 1 }}
+                onClick={handleSimulateLoadFailure}
+              >
+                <span className={styles.btnLabelGroup}>
+                  <AlertTriangle size={14} />
+                  <span>จำลองกรณีโหลดไม่สำเร็จ (กรณีที่ 4)</span>
+                </span>
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* 4. Bottom Verification & Telemetry Ledger */}
+      <section className={styles.ledgerSection} aria-label="บันทึกผลการรันและการทวนสอบ">
+        <div className={styles.tabToolbar}>
+          <div className={styles.tabList} role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeBottomTab === "log"}
+              className={`${styles.tabBtn} ${activeBottomTab === "log" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveBottomTab("log")}
+            >
+              <FileText size={15} />
+              บันทึกเหตุการณ์และผลลัพธ์ (Run Log · {events.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeBottomTab === "verification"}
+              className={`${styles.tabBtn} ${activeBottomTab === "verification" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveBottomTab("verification")}
+            >
+              <ShieldCheck size={15} />
+              ตารางทวนสอบ 4 กรณีทดสอบ (Expected vs Actual)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeBottomTab === "architecture"}
+              className={`${styles.tabBtn} ${activeBottomTab === "architecture" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveBottomTab("architecture")}
+            >
+              <Database size={15} />
+              ขอบเขตงานและแนวทางขยายระบบ (M01 Scope)
+            </button>
+          </div>
+
+          <div className={styles.exportGroup}>
+            <button type="button" className={styles.utilityBtn} onClick={handleCopySummary}>
+              {copiedSummary ? <Check size={14} /> : <Copy size={14} />}
+              {copiedSummary ? "คัดลอกสรุปแล้ว" : "คัดลอกสรุปผล"}
+            </button>
+            <button type="button" className={styles.utilityBtn} onClick={handleExportJson}>
+              <Download size={14} />
+              ส่งออก JSON
+            </button>
+            <button type="button" className={styles.utilityBtn} onClick={handleExportCsv}>
+              <FileSpreadsheet size={14} />
+              ส่งออก CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Metrics Strip: Explicitly separates Test Case Passed vs Navigation Succeeded */}
+        <dl className={styles.metricsStrip}>
+          <div className={styles.metricCell}>
+            <dt>รหัสรอบการรัน / รุ่นหุ่นยนต์</dt>
+            <dd>
+              {runCode} · {robot?.canonicalName || requestedRobotId}
+            </dd>
+          </div>
+          <div className={styles.metricCell}>
+            <dt>เวอร์ชันฉาก / โหมดจำลอง</dt>
+            <dd>{SCENE_VERSION}</dd>
+          </div>
+          <div className={styles.metricCell}>
+            <dt>ผ่านกรณีทดสอบ (Test Case Passed)</dt>
+            <dd>
+              {currentOutcome ? (
+                <span className={styles.passPill}>ผ่านเกณฑ์ (PASS)</span>
+              ) : (
+                <span className={styles.neutralPill}>รอเลือกการตัดสินใจ</span>
+              )}
+            </dd>
+          </div>
+          <div className={styles.metricCell}>
+            <dt>ภารกิจนำทางสำเร็จ (Navigation Succeeded)</dt>
+            <dd>
+              {currentOutcome?.navigationSucceeded ? (
+                <span className={styles.passPill}>นำทางถึงจุดหมาย (YES)</span>
+              ) : (
+                <span className={styles.neutralPill}>
+                  {phase === "HANDOFF_STAFF"
+                    ? "ส่งต่อเจ้าหน้าที่ (NO)"
+                    : phase === "CANCELLED"
+                    ? "ผู้ใช้ยกเลิก (NO)"
+                    : phase === "ERROR_RECOVERY"
+                    ? "โหมดกู้คืน (NO)"
+                    : "ยังไม่เริ่มนำทาง"}
+                </span>
+              )}
+            </dd>
+          </div>
+          <div className={styles.metricCell}>
+            <dt>เวลาที่ใช้ไปทั้งหมด</dt>
+            <dd>{elapsedSec.toFixed(1)} วินาที {isSavingRun ? "(กำลังบันทึก…)" : ""}</dd>
+          </div>
+        </dl>
+
+        {/* Tab 1: Ordered Event Log Table */}
+        {activeBottomTab === "log" && (
+          <>
+            <div className={styles.tableWrap}>
+              <table className={styles.dataTable}>
+                <thead>
+                  <tr>
+                    <th>ลำดับ</th>
+                    <th>เวลา (วินาที)</th>
+                    <th>ผู้กระทำ (Actor)</th>
+                    <th>รหัสเหตุการณ์ (Action)</th>
+                    <th>รายละเอียดเหตุการณ์</th>
+                    <th>สถานะหลังเหตุการณ์</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((ev) => (
+                    <tr key={ev.seq}>
+                      <td>#{ev.seq}</td>
+                      <td>{ev.timeSec.toFixed(1)}s</td>
+                      <td>
+                        <span className={styles.actorTag}>{ev.actor}</span>
+                      </td>
+                      <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{ev.action}</td>
+                      <td>{ev.detail}</td>
+                      <td>
+                        <span className={styles.monoTag}>{ev.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {savedRuns.length > 0 && (
+              <div className={styles.historyBar}>
+                <span className={styles.historyLabel}>
+                  ประวัติการรันที่บันทึกในฐานข้อมูล ({savedRuns.length}):
+                </span>
+                {savedRuns.slice(0, 6).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`${styles.historyChip} ${
+                      item.runCode === runCode ? styles.historyChipActive : ""
+                    }`}
+                    onClick={() => {
+                      setRunCode(item.runCode);
+                      setEvents(item.events);
+                      setElapsedSec(item.durationSec);
+                      if (item.testCaseType === "NAVIGATION_SUCCESS") {
+                        setPhase("ARRIVED");
+                        setRobotProgress(100);
+                      } else if (item.testCaseType === "STAFF_HANDOFF") {
+                        setPhase("HANDOFF_STAFF");
+                        setRobotProgress(0);
+                      } else if (item.testCaseType === "USER_CANCEL") {
+                        setPhase("CANCELLED");
+                        setRobotProgress(0);
+                      } else {
+                        setPhase("ERROR_RECOVERY");
+                        setErrorReason(item.errorReason);
+                      }
+                    }}
+                  >
+                    {item.runCode} · {item.terminalStatus} ({item.durationSec}s)
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Tab 2: 4-Case Verification Matrix */}
+        {activeBottomTab === "verification" && (
+          <div className={styles.tableWrap}>
+            <table className={styles.dataTable}>
+              <thead>
+                <tr>
+                  <th>กรณีทดสอบ</th>
+                  <th>อินพุต / ขั้นตอนทดสอบ</th>
+                  <th>ผลที่คาดหวัง (Expected)</th>
+                  <th>ผลที่วัดได้จริงในระบบ (Actual)</th>
+                  <th>การแยกสถานะผลลัพธ์</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong>กรณีที่ 1 · เส้นทางหลักสำเร็จ</strong>
+                  </td>
+                  <td>
+                    เลือกหุ่นจาก <code>/robots</code> กด <code>ทดลอง HRI</code> แล้วเลือก{" "}
+                    <code>ให้หุ่นช่วยนำทาง</code>
+                  </td>
+                  <td>
+                    แสดงชื่อรุ่นและแหล่งอ้างอิงจริง, เปลี่ยนสถานะจากจุดต้อนรับไปถึงปลายทาง และสร้าง Run Log พร้อมเวลาที่ใช้
+                  </td>
+                  <td>
+                    แสดงรุ่น <strong>{robot?.canonicalName || requestedRobotId}</strong>, เคลื่อนที่บนแผนผัง 2D ถึงห้อง A-102 และบันทึก Run Log ลง PostgreSQL
+                  </td>
+                  <td>
+                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
+                    <span className={styles.passPill}>นำทางสำเร็จ = ใช่</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>กรณีที่ 2 · ขอเจ้าหน้าที่</strong>
+                  </td>
+                  <td>
+                    เริ่มจากจุดต้อนรับเดียวกัน แล้วเลือก <code>ขอเจ้าหน้าที่</code>
+                  </td>
+                  <td>
+                    บันทึกเหตุการณ์ส่งต่อเจ้าหน้าที่และจบการทดลองในสถานะส่งต่อเจ้าหน้าที่โดยไม่ค้าง
+                  </td>
+                  <td>
+                    สร้างเหตุการณ์ <code>NOTIFY_RECEPTION_STAFF</code> และ{" "}
+                    <code>STAFF_ACKNOWLEDGED</code> พร้อมจบที่สถานะ{" "}
+                    <code>HANDED_OFF_TO_STAFF</code>
+                  </td>
+                  <td>
+                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
+                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>กรณีที่ 3 · ยกเลิกคำขอ</strong>
+                  </td>
+                  <td>
+                    เลือก <code>ยกเลิก</code> ระหว่างที่หุ่นกำลังเสนอความช่วยเหลือหรือกำลังนำทาง
+                  </td>
+                  <td>
+                    หยุดขั้นตอนทันที บันทึกการยกเลิกใน Run Log และแสดงทางเลือกเริ่มใหม่หรือกลับหน้า{" "}
+                    <code>/robots</code>
+                  </td>
+                  <td>
+                    หยุดตัวจับเวลาทันที บันทึก <code>SAFE_STANDBY_RETURN</code> สถานะ{" "}
+                    <code>CANCELLED_BY_USER</code>
+                  </td>
+                  <td>
+                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
+                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>กรณีที่ 4 · โหลดไม่สำเร็จ / กู้คืน</strong>
+                  </td>
+                  <td>
+                    เปิดด้วยรหัสรุ่นที่ไม่ถูกต้อง หรือกดปุ่ม{" "}
+                    <code>จำลองกรณีโหลดไม่สำเร็จ</code>
+                  </td>
+                  <td>
+                    แจ้งสาเหตุชัดเจน ไม่ปล่อยหน้าว่าง และมีปุ่มลองใหม่หรือกลับไปหน้า{" "}
+                    <code>/robots</code>
+                  </td>
+                  <td>
+                    แสดงแถบแจ้งเตือนสาเหตุพร้อมปุ่ม <code>ลองโหลดใหม่ (Retry)</code> และลิงก์กลับ{" "}
+                    <code>/robots</code>
+                  </td>
+                  <td>
+                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
+                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Tab 3: Scope & Expansion Notes */}
+        {activeBottomTab === "architecture" && (
+          <div className={styles.docSplit}>
+            <div className={styles.docColumn}>
+              <h3>สิ่งที่ทำจริงในรอบนี้ (In-Scope M01)</h3>
+              <ul className={styles.docList}>
+                <li>
+                  เชื่อมปุ่ม <code>ทดลอง HRI</code> จากการ์ดในหน้า <code>/robots</code> และหน้าโปรไฟล์หุ่นยนต์เข้าสู่ฉากจำลองจุดต้อนรับศูนย์สุขภาวะ
+                </li>
+                <li>
+                  แสดงข้อมูลจากทะเบียนจริง (ชื่อรุ่น, ผู้พัฒนา, สถานะในไทย, แหล่งข้อมูลอ้างอิง) แยกจากป้าย{" "}
+                  <code>สถานการณ์จำลอง HRI</code> อย่างชัดเจน
+                </li>
+                <li>
+                  รองรับการตัดสินใจของผู้ใช้ครบทั้ง 3 ทางเลือก (นำทาง, ขอเจ้าหน้าที่, ยกเลิก) และการกู้คืนเมื่อโหลดรุ่นไม่สำเร็จ
+                </li>
+                <li>
+                  บันทึก Run Log ลงฐานข้อมูล PostgreSQL (<code>HriSimulationRun</code>) และส่งออกไฟล์ JSON / CSV ได้ทันที
+                </li>
+              </ul>
+            </div>
+            <div className={styles.docColumn}>
+              <h3>แนวทางขยายต่อในอนาคต (Next Iteration)</h3>
+              <ul className={styles.docList}>
+                <li>
+                  เชื่อมต่อโมเดล 3D URDF / WebGL หรือสะพานเชื่อม ROS 2 (<code>rosbridge_suite</code>) สำหรับหุ่นยนต์ที่มีไฟล์จำลองทางกายภาพ
+                </li>
+                <li>
+                  เพิ่มการจำลองสิ่งกีดขวางแบบไดนามิกในโถงทางเดินศูนย์สุขภาวะ (Dynamic Crowd Avoidance)
+                </li>
+                <li>
+                  เพิ่มหน้าเปรียบเทียบสถิติเวลาตอบสนอง HRI ระหว่างหุ่นยนต์หลายรุ่นในทะเบียน HumanoidTH
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

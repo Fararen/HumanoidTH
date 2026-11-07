@@ -328,3 +328,66 @@ model ChallengeSubmission {
   @@index([challengeId])
   @@index([status])
 }
+
+
+model HriSimulationRun {
+  id                  String   @id @default(cuid())
+  runCode             String   @unique
+  robotId             String
+  robotName           String
+  sceneVersion        String   @default("wellness-reception-v1.0")
+  simulationMode      String   @default("interactive-hri-living-lab")
+  testCaseType        String
+  terminalStatus      String
+  testCasePassed      Boolean  @default(true)
+  navigationSucceeded Boolean  @default(false)
+  durationSec         Float
+  errorReason         String?
+  eventsJson          Json     @default("[]")
+  createdAt           DateTime @default(now())
+
+  @@index([robotId])
+  @@index([testCaseType])
+  @@index([createdAt])
+}
+
+
+model CompanyModelEvaluation {
+  id                  String   @id @default(cuid())
+  modelCode           String
+  version             String   @default("v1.0.0")
+  groupId             String   @default("industrial-pick-place")
+  groupName           String   @default("หุ่นยนต์หยิบวางชิ้นงานในภาคการผลิต (Industrial Pick & Place)")
+  protocolCode        String   @default("TH-IND-PP-2026.1")
+  companyName         String
+  contactName         String
+  contactEmail        String
+  contactPhone        String?
+  modelName           String
+  robotClass          String   @default("Industrial Cobot / Manipulator")
+  hardwareSpec        String
+  firmwareVersion     String
+  taskEvaluated       String   @default("การหยิบวางชิ้นงานความละเอียดสูงบนสายพาน (High-Precision Bin Picking & Palletizing)")
+  testConditions      String   @default("ชิ้นงานมาตรฐาน 250g · ความเร็วสายพานคงที่ · ทดสอบต่อเนื่อง 50 รอบภายใต้โปรโตคอล TH-IND-PP-2026.1")
+  workflowStatus      String   @default("DRAFT")
+  safetyStatus        String   @default("PENDING")
+  precisionMm         Float?
+  speedSec            Float?
+  evaluatorName       String?  @default("ดร. ภาคภูมิ วงศ์วิศิษฏ์ (Lead Protocol Evaluator)")
+  evaluatorNotes      String?
+  sampleReportTitle   String?
+  sampleReportSummary String?
+  evidenceLinksJson   Json     @default("[]")
+  publishedFieldsJson Json     @default("{}")
+  isPublished         Boolean  @default(false)
+  allowContact        Boolean  @default(true)
+  isDemoData          Boolean  @default(true)
+  evaluatedAt         DateTime @default(now())
+  publishedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([modelCode, version])
+  @@index([groupId, isPublished])
+  @@index([workflowStatus])
+}
