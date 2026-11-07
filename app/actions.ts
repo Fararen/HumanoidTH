@@ -290,6 +290,9 @@ export async function loginAsUser(email: string, role: string, companyName?: str
       name: email.split("@")[0],
       role: accountRole
     }
+  }).catch((error) => {
+    console.error("Demo account login failed:", error);
+    redirect("/profile?accountError=database");
   });
 
   if (accountRole === "COMPANY" && companyName) {
@@ -297,11 +300,17 @@ export async function loginAsUser(email: string, role: string, companyName?: str
       where: { name: companyName },
       update: {},
       create: { name: companyName }
+    }).catch((error) => {
+      console.error("Demo company setup failed:", error);
+      redirect("/profile?accountError=database");
     });
     await prisma.companyMembership.upsert({
       where: { userId_companyId: { userId: user.id, companyId: company.id } },
       update: {},
       create: { userId: user.id, companyId: company.id, role: "OWNER" }
+    }).catch((error) => {
+      console.error("Demo company membership setup failed:", error);
+      redirect("/profile?accountError=database");
     });
   }
 
@@ -357,6 +366,9 @@ export async function registerAndLoginUser(formData: FormData) {
     }
 
     return account;
+  }).catch((error) => {
+    console.error("Account registration failed:", error);
+    redirect("/profile?accountError=database");
   });
 
   const cookieStore = await cookies();

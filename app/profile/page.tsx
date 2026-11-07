@@ -31,12 +31,20 @@ function workflowProgress(status: string) {
   return 1;
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams
+}: {
+  searchParams: Promise<{ accountError?: string }>;
+}) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const currentEmail = cookieStore.get("user_email")?.value;
   const currentRole = cookieStore.get("user_role")?.value || "USER";
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
+  const accountErrorMessage = lang === "th"
+    ? "ยังบันทึกบัญชีไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง หรือตรวจสอบการเชื่อมต่อฐานข้อมูล"
+    : "We could not save this account right now. Please try again or check the database connection.";
 
   let users: Array<{ id: string; name: string | null; email: string; role: string; createdAt: Date }> = [];
   let currentUser: { name: string | null; email: string; role: string; createdAt: Date; submissions: Array<{ id: string; title: string; url: string | null; submissionType: string; status: string; reviewNotes: string | null; notes: string | null; createdAt: Date }>; companyMemberships: Array<{ role: string; company: { name: string; isVerified: boolean } }> } | null = null;
@@ -58,12 +66,41 @@ export default async function ProfilePage() {
   const approved = submissions.filter((item) => item.status === "APPROVED").length;
   const approvedShowcase = submissions.filter((item) => item.status === "APPROVED").slice(0, 3);
   const inReview = submissions.filter((item) => reviewStatuses.includes(item.status)).length;
-  const displayName = currentUser?.name || currentUser?.email.split("@")[0] || "Atlas member";
+  const displayName = currentUser?.name || currentUser?.email.split("@")[0] || (lang === "th" ? "สมาชิก Atlas" : "Atlas member");
   const activeRole = currentUser?.role || currentRole;
   const companyMembership = currentUser?.companyMemberships[0];
+  const profileCopy = lang === "th" ? {
+    accountKicker: "บัญชี HUMANOIDTH", contribute: "ร่วมส่งข้อมูลให้ Atlas", databaseOffline: "ข้อมูลบัญชีใช้งานไม่ได้ชั่วคราว กรุณาลองใหม่อีกครั้งในสักครู่",
+    workspaceKicker: "พื้นที่ทำงานของคุณใน ATLAS", welcomeTitle: "เก็บผลงานของคุณไว้ในที่เดียว", welcomeLead: "เข้าสู่ระบบด้วยอีเมลเพื่อติดตามรายการที่ส่ง สถานะการตรวจสอบ และสร้างประวัติผลงานสาธารณะของคุณ",
+    trackStatus: "ติดตามสถานะรายการ", keepEvidence: "เก็บหลักฐานของคุณ", connectCommunity: "เชื่อมต่องานของคุณกับชุมชน", simpleAccount: "บัญชีเรียบง่ายสำหรับมีส่วนร่วมใน Atlas สาธารณะ",
+    welcome: "ยินดีต้อนรับ", signInTitle: "เข้าสู่ระบบหรือสร้างบัญชี", signInLead: "ใช้อีเมลที่คุณเข้าถึงได้", tryMock: "ลองใช้บัญชีตัวอย่าง",
+    individual: "บุคคล", individualDemo: "เรียน ใช้ simulator และแข่งขัน", company: "บริษัท", companyDemo: "ส่งรุ่นหุ่นยนต์และดูผลประเมิน", admin: "ผู้ดูแลระบบ", adminDemo: "ตรวจสอบบัญชีและงานปฏิบัติการ",
+    signedIn: "เข้าสู่ระบบแล้ว", signOut: "ออกจากระบบ", contributionSummary: "สรุปผลงาน", submitted: "ส่งแล้ว", recordsShared: "รายการที่แชร์", approved: "อนุมัติแล้ว", accepted: "ได้รับเข้าระบบ Atlas", inReview: "กำลังตรวจสอบ", awaitingReview: "รอการตรวจสอบ",
+    companyWorkspace: "พื้นที่ทำงานบริษัท", companyAccount: "บัญชีบริษัท", verified: "องค์กรยืนยันแล้ว", awaitingVerification: "โปรไฟล์บริษัทกำลังรอการยืนยัน", openCompanyPortal: "เปิดพอร์ทัลบริษัท",
+    activity: "กิจกรรมของคุณ", history: "ประวัติการส่งข้อมูล", historyLead: "ติดตามรายการที่คุณแชร์กับ Atlas", submitRecord: "ส่งรายการ", submittedStep: "ส่งแล้ว", processing: "กำลังประมวลผล", review: "ตรวจสอบ", inAtlas: "อยู่ใน Atlas", openSource: "เปิดแหล่งข้อมูล",
+    noSubmissions: "ยังไม่มีรายการที่ส่ง", noSubmissionsLead: "ส่งข้อมูลรุ่นหุ่นยนต์ แหล่งงานวิจัย หรือคำแก้ไข เพื่อเริ่มสร้างประวัติผลงานของคุณ", submitFirst: "ส่งรายการแรกของคุณ",
+    administration: "การดูแลระบบ", atlasAccounts: "บัญชี Atlas", accountsLead: "บัญชีที่เพิ่งสมัครในพื้นที่ทำงานนี้", accounts: "บัญชี", unnamedMember: "สมาชิกที่ยังไม่ระบุชื่อ", noAccounts: "ไม่พบบัญชี"
+  } : {
+    accountKicker: "HUMANOIDTH ACCOUNT", contribute: "Contribute to the atlas", databaseOffline: "Account data is temporarily unavailable. Please refresh in a moment.",
+    workspaceKicker: "YOUR ATLAS WORKSPACE", welcomeTitle: "Keep your contributions in one place.", welcomeLead: "Sign in with your email to follow submissions, check review progress, and build your public contribution history.",
+    trackStatus: "Track submission status", keepEvidence: "Keep a record of your evidence", connectCommunity: "Connect your work to the community", simpleAccount: "A simple account for participating in the public atlas",
+    welcome: "WELCOME", signInTitle: "Sign in or create an account", signInLead: "Use an email address you can access.", tryMock: "Try a mock account",
+    individual: "Individual", individualDemo: "Learn, simulate, and compete", company: "Company", companyDemo: "Submit models and view evaluations", admin: "Administrator", adminDemo: "Review accounts and operations",
+    signedIn: "SIGNED IN", signOut: "Sign out", contributionSummary: "Contribution summary", submitted: "Submitted", recordsShared: "records shared", approved: "Approved", accepted: "accepted into Atlas", inReview: "In review", awaitingReview: "awaiting review",
+    companyWorkspace: "COMPANY WORKSPACE", companyAccount: "Company account", verified: "Verified organization", awaitingVerification: "Company profile awaiting verification", openCompanyPortal: "Open Company Portal",
+    activity: "YOUR ACTIVITY", history: "Submission history", historyLead: "Follow the records you have shared with the atlas.", submitRecord: "Submit a record", submittedStep: "Submitted", processing: "Processing", review: "Review", inAtlas: "In Atlas", openSource: "Open source",
+    noSubmissions: "No submissions yet", noSubmissionsLead: "Share a robot model, research source, or correction to start your contribution history.", submitFirst: "Submit your first record",
+    administration: "ADMINISTRATION", atlasAccounts: "Atlas accounts", accountsLead: "Recently registered accounts in this workspace.", accounts: "accounts", unnamedMember: "Unnamed member", noAccounts: "No accounts found."
+  };
+  const roleLabel: Record<string, string> = lang === "th"
+    ? { USER: "บุคคล", COMPANY: "บริษัท", ADMIN: "ผู้ดูแลระบบ" }
+    : { USER: "User", COMPANY: "Company", ADMIN: "Administrator" };
+  const statusLabel: Record<string, string> = lang === "th"
+    ? { QUEUED: "อยู่ในคิว", NEEDS_REVIEW: "รอการตรวจสอบ", ANALYZED: "วิเคราะห์แล้ว", FETCHING: "กำลังประมวลผล", APPROVED: "อนุมัติแล้ว", REJECTED: "ไม่อนุมัติ", FAILED: "ไม่สำเร็จ" }
+    : { QUEUED: "Queued", NEEDS_REVIEW: "Needs review", ANALYZED: "Analyzed", FETCHING: "Processing", APPROVED: "Approved", REJECTED: "Rejected", FAILED: "Failed" };
   const showcaseCopy = lang === "th" ? {
     eyebrow: "ผลงานใน ATLAS",
-    title: "Contribution showcase",
+    title: "ผลงานที่แสดงใน Atlas",
     description: "รายการที่ผ่านการอนุมัติและเผยแพร่แล้ว",
     approved: "เผยแพร่แล้ว",
     emptyTitle: "ผลงานแรกของคุณจะแสดงที่นี่",
@@ -83,49 +120,49 @@ export default async function ProfilePage() {
 
   return <div className={styles.profilePage}>
     <header className={styles.pageHeading}>
-      <div><span className={styles.kicker}>HUMANOIDTH ACCOUNT</span><h1>{t.profileTitle}</h1><p>{t.profileDesc}</p></div>
-      <Link className={styles.headingLink} href="/submit-data">Contribute to the atlas <ArrowRight size={16} aria-hidden="true" /></Link>
+      <div><span className={styles.kicker}>{profileCopy.accountKicker}</span><h1>{t.profileTitle}</h1><p>{t.profileDesc}</p></div>
+      <Link className={styles.headingLink} href="/submit-data">{profileCopy.contribute} <ArrowRight size={16} aria-hidden="true" /></Link>
     </header>
 
-    {databaseOffline && <div className={styles.warning} role="status">Account data is temporarily unavailable. Please refresh in a moment.</div>}
+    {(databaseOffline || params.accountError === "database") && <div className={styles.warning} role="status">{params.accountError === "database" ? accountErrorMessage : profileCopy.databaseOffline}</div>}
 
     {!currentEmail ? <div className={styles.signedOutLayout}>
       <section className={styles.welcomeCard}>
         <span className={styles.welcomeIcon}><UserRound size={22} aria-hidden="true" /></span>
-        <span className={styles.kicker}>YOUR ATLAS WORKSPACE</span>
-        <h2>Keep your contributions in one place.</h2>
-        <p>Sign in with your email to follow submissions, check review progress, and build your public contribution history.</p>
-        <div className={styles.benefitList}><span><BadgeCheck size={17} aria-hidden="true" />Track submission status</span><span><Database size={17} aria-hidden="true" />Keep a record of your evidence</span><span><Users size={17} aria-hidden="true" />Connect your work to the community</span></div>
-        <div className={styles.welcomeFoot}><ShieldCheck size={16} aria-hidden="true" />A simple account for participating in the public atlas</div>
+        <span className={styles.kicker}>{profileCopy.workspaceKicker}</span>
+        <h2>{profileCopy.welcomeTitle}</h2>
+        <p>{profileCopy.welcomeLead}</p>
+        <div className={styles.benefitList}><span><BadgeCheck size={17} aria-hidden="true" />{profileCopy.trackStatus}</span><span><Database size={17} aria-hidden="true" />{profileCopy.keepEvidence}</span><span><Users size={17} aria-hidden="true" />{profileCopy.connectCommunity}</span></div>
+        <div className={styles.welcomeFoot}><ShieldCheck size={16} aria-hidden="true" />{profileCopy.simpleAccount}</div>
       </section>
 
       <section className={styles.authCard}>
-        <div className={styles.cardHeading}><span className={styles.kicker}>WELCOME</span><h2>Sign in or create an account</h2><p>Use an email address you can access.</p></div>
-        <RegisterAccountForm />
-        {process.env.NODE_ENV !== "production" && <details className={styles.demoAccess}><summary><CircleHelp size={15} aria-hidden="true" />Try a mock account</summary><div className={styles.demoAccountGrid}>
-          <form action={loginAsUser.bind(null, "member.demo@humanoidth.local", "USER", undefined)}><button type="submit"><UserRound size={16} aria-hidden="true" /><span><strong>Individual</strong><small>Learn, simulate, and compete</small></span></button></form>
-          <form action={loginAsUser.bind(null, "company.demo@humanoidth.local", "COMPANY", "Eastern Automation Lab (อีสเทิร์น ออโตเมชัน)")}><button type="submit"><Building2 size={16} aria-hidden="true" /><span><strong>Company</strong><small>Submit models and view evaluations</small></span></button></form>
-          <form action={loginAsUser.bind(null, "admin.demo@humanoidth.local", "ADMIN", undefined)}><button type="submit"><ShieldCheck size={16} aria-hidden="true" /><span><strong>Administrator</strong><small>Review accounts and operations</small></span></button></form>
+        <div className={styles.cardHeading}><span className={styles.kicker}>{profileCopy.welcome}</span><h2>{profileCopy.signInTitle}</h2><p>{profileCopy.signInLead}</p></div>
+        <RegisterAccountForm lang={lang} />
+        {process.env.NODE_ENV !== "production" && <details className={styles.demoAccess}><summary><CircleHelp size={15} aria-hidden="true" />{profileCopy.tryMock}</summary><div className={styles.demoAccountGrid}>
+          <form action={loginAsUser.bind(null, "member.demo@humanoidth.local", "USER", undefined)}><button type="submit"><UserRound size={16} aria-hidden="true" /><span><strong>{profileCopy.individual}</strong><small>{profileCopy.individualDemo}</small></span></button></form>
+          <form action={loginAsUser.bind(null, "company.demo@humanoidth.local", "COMPANY", "Eastern Automation Lab (อีสเทิร์น ออโตเมชัน)")}><button type="submit"><Building2 size={16} aria-hidden="true" /><span><strong>{profileCopy.company}</strong><small>{profileCopy.companyDemo}</small></span></button></form>
+          <form action={loginAsUser.bind(null, "admin.demo@humanoidth.local", "ADMIN", undefined)}><button type="submit"><ShieldCheck size={16} aria-hidden="true" /><span><strong>{profileCopy.admin}</strong><small>{profileCopy.adminDemo}</small></span></button></form>
         </div></details>}
       </section>
     </div> : <>
       <section className={styles.accountOverview}>
         <div className={styles.identityCard}>
           <div className={styles.avatar}>{displayName.slice(0, 1).toUpperCase()}</div>
-          <div className={styles.identityCopy}><span className={styles.kicker}>SIGNED IN</span><h2>{displayName}</h2><p>{currentEmail}</p><span className={`${styles.roleBadge} ${activeRole === "ADMIN" ? styles.adminRole : ""}`}><ShieldCheck size={13} aria-hidden="true" />{activeRole}</span></div>
-          <form action={logoutUser}><button type="submit" className={styles.logoutButton}>Sign out</button></form>
+          <div className={styles.identityCopy}><span className={styles.kicker}>{profileCopy.signedIn}</span><h2>{displayName}</h2><p>{currentEmail}</p><span className={`${styles.roleBadge} ${activeRole === "ADMIN" ? styles.adminRole : ""}`}><ShieldCheck size={13} aria-hidden="true" />{roleLabel[activeRole] || activeRole}</span></div>
+          <form action={logoutUser}><button type="submit" className={styles.logoutButton}>{profileCopy.signOut}</button></form>
         </div>
-        <div className={styles.statsGrid} aria-label="Contribution summary">
-          <article className={styles.statCard}><span><Database size={16} aria-hidden="true" />Submitted</span><strong>{submissions.length}</strong><small>records shared</small></article>
-          <article className={styles.statCard}><span><BadgeCheck size={16} aria-hidden="true" />Approved</span><strong>{approved}</strong><small>accepted into Atlas</small></article>
-          <article className={styles.statCard}><span><Clock3 size={16} aria-hidden="true" />In review</span><strong>{inReview}</strong><small>awaiting review</small></article>
+        <div className={styles.statsGrid} aria-label={profileCopy.contributionSummary}>
+          <article className={styles.statCard}><span><Database size={16} aria-hidden="true" />{profileCopy.submitted}</span><strong>{submissions.length}</strong><small>{profileCopy.recordsShared}</small></article>
+          <article className={styles.statCard}><span><BadgeCheck size={16} aria-hidden="true" />{profileCopy.approved}</span><strong>{approved}</strong><small>{profileCopy.accepted}</small></article>
+          <article className={styles.statCard}><span><Clock3 size={16} aria-hidden="true" />{profileCopy.inReview}</span><strong>{inReview}</strong><small>{profileCopy.awaitingReview}</small></article>
         </div>
       </section>
 
       {activeRole === "COMPANY" && <section className={styles.companyWorkspace}>
         <span className={styles.companyWorkspaceIcon}><Building2 size={20} aria-hidden="true" /></span>
-        <div><span className={styles.kicker}>COMPANY WORKSPACE</span><h2>{companyMembership?.company.name || "Company account"}</h2><p>{companyMembership?.company.isVerified ? "Verified organization" : "Company profile awaiting verification"} · {companyMembership?.role || "OWNER"}</p></div>
-        <Link className={styles.secondaryButton} href="/company/models/new">Open Company Portal <ArrowRight size={14} aria-hidden="true" /></Link>
+        <div><span className={styles.kicker}>{profileCopy.companyWorkspace}</span><h2>{companyMembership?.company.name || profileCopy.companyAccount}</h2><p>{companyMembership?.company.isVerified ? profileCopy.verified : profileCopy.awaitingVerification} · {companyMembership?.role || "OWNER"}</p></div>
+        <Link className={styles.secondaryButton} href="/company/models/new">{profileCopy.openCompanyPortal} <ArrowRight size={14} aria-hidden="true" /></Link>
       </section>}
 
       <section className={styles.showcaseSection} aria-labelledby="profile-showcase-title">
@@ -151,23 +188,23 @@ export default async function ProfilePage() {
       </section>
 
       <section className={styles.submissionsSection}>
-        <header className={styles.sectionHeading}><div><span className={styles.kicker}>YOUR ACTIVITY</span><h2>Submission history</h2><p>Follow the records you have shared with the atlas.</p></div><Link href="/submit-data" className={styles.secondaryButton}>Submit a record <ArrowRight size={15} aria-hidden="true" /></Link></header>
+        <header className={styles.sectionHeading}><div><span className={styles.kicker}>{profileCopy.activity}</span><h2>{profileCopy.history}</h2><p>{profileCopy.historyLead}</p></div><Link href="/submit-data" className={styles.secondaryButton}>{profileCopy.submitRecord} <ArrowRight size={15} aria-hidden="true" /></Link></header>
         {submissions.length ? <div className={styles.submissionList}>{submissions.map((item) => <article className={styles.submissionItem} key={item.id}>
           <div className={styles.submissionIcon}><Bot size={18} aria-hidden="true" /></div>
           <div className={styles.submissionMain}><h3>{item.title}</h3><p>{item.submissionType.replace(/[_-]/g, " ")} · {item.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</p>{item.reviewNotes || item.notes ? <small>{item.reviewNotes || item.notes}</small> : null}
-            <div className={`${styles.workflow} ${["REJECTED", "FAILED"].includes(item.status) ? styles.workflowStopped : ""}`} aria-label={`Submission workflow: ${item.status.toLowerCase()}`}>
-              {[["Submitted", 1], ["Processing", 2], ["Review", 3], ["In Atlas", 4]].map(([label, step]) => <span key={label} className={`${styles.workflowStep} ${Number(step) <= workflowProgress(item.status) ? styles.workflowComplete : ""} ${Number(step) === workflowProgress(item.status) && item.status !== "APPROVED" ? styles.workflowCurrent : ""}`}><i />{label}</span>)}
+            <div className={`${styles.workflow} ${["REJECTED", "FAILED"].includes(item.status) ? styles.workflowStopped : ""}`} aria-label={`${profileCopy.history}: ${statusLabel[item.status] || item.status}`}>
+              {[[profileCopy.submittedStep, 1], [profileCopy.processing, 2], [profileCopy.review, 3], [profileCopy.inAtlas, 4]].map(([label, step]) => <span key={label} className={`${styles.workflowStep} ${Number(step) <= workflowProgress(item.status) ? styles.workflowComplete : ""} ${Number(step) === workflowProgress(item.status) && item.status !== "APPROVED" ? styles.workflowCurrent : ""}`}><i />{label}</span>)}
             </div>
           </div>
-          <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>{item.status.replace(/_/g, " ").toLowerCase()}</span>
-          {item.url ? <a className={styles.sourceLink} href={item.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={13} aria-hidden="true" /></a> : null}
-        </article>)}</div> : <div className={styles.emptyState}><span><Database size={20} aria-hidden="true" /></span><strong>No submissions yet</strong><p>Share a robot model, research source, or correction to start your contribution history.</p><Link href="/submit-data" className={styles.primaryButton}>Submit your first record <ArrowRight size={16} aria-hidden="true" /></Link></div>}
+          <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>{statusLabel[item.status] || item.status.replace(/_/g, " ")}</span>
+          {item.url ? <a className={styles.sourceLink} href={item.url} target="_blank" rel="noreferrer">{profileCopy.openSource} <ArrowRight size={13} aria-hidden="true" /></a> : null}
+        </article>)}</div> : <div className={styles.emptyState}><span><Database size={20} aria-hidden="true" /></span><strong>{profileCopy.noSubmissions}</strong><p>{profileCopy.noSubmissionsLead}</p><Link href="/submit-data" className={styles.primaryButton}>{profileCopy.submitFirst} <ArrowRight size={16} aria-hidden="true" /></Link></div>}
       </section>
     </>}
 
     {activeRole === "ADMIN" && <section className={styles.adminSection}>
-      <header className={styles.sectionHeading}><div><span className={styles.kicker}>ADMINISTRATION</span><h2>Atlas accounts</h2><p>Recently registered accounts in this workspace.</p></div><span className={styles.userCount}>{users.length} accounts</span></header>
-      <div className={styles.userList}>{users.map((user) => <article className={styles.userRow} key={user.id}><span className={styles.userAvatar}>{(user.name || user.email).slice(0, 1).toUpperCase()}</span><span><strong>{user.name || "Unnamed member"}</strong><small>{user.email}</small></span><span className={styles.roleBadge}>{user.role}</span><time>{user.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</time></article>)}{!users.length && <p className={styles.emptyUsers}>No accounts found.</p>}</div>
+      <header className={styles.sectionHeading}><div><span className={styles.kicker}>{profileCopy.administration}</span><h2>{profileCopy.atlasAccounts}</h2><p>{profileCopy.accountsLead}</p></div><span className={styles.userCount}>{users.length} {profileCopy.accounts}</span></header>
+      <div className={styles.userList}>{users.map((user) => <article className={styles.userRow} key={user.id}><span className={styles.userAvatar}>{(user.name || user.email).slice(0, 1).toUpperCase()}</span><span><strong>{user.name || profileCopy.unnamedMember}</strong><small>{user.email}</small></span><span className={styles.roleBadge}>{roleLabel[user.role] || user.role}</span><time>{user.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</time></article>)}{!users.length && <p className={styles.emptyUsers}>{profileCopy.noAccounts}</p>}</div>
     </section>}
   </div>;
 }

@@ -23,6 +23,7 @@ export default function LanguageSelector({ currentLang }: LanguageSelectorProps)
     if (lang === selectedLang || isPending) return;
     const previousLang = selectedLang;
     setSelectedLang(lang);
+    window.dispatchEvent(new CustomEvent("atlas-language-change", { detail: lang }));
 
     startTransition(async () => {
       try {
