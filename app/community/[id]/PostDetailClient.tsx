@@ -92,6 +92,11 @@ export default function PostDetailClient({
   const handlePostVote = (direction: "UP" | "DOWN") => {
     if (!post) return;
     const currentVote = post.userVote;
+    fetch("/api/community/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id, voteType: direction })
+    }).catch(() => {});
     let nextVote: "UP" | "DOWN" | null = direction;
     let upDiff = 0;
     let downDiff = 0;
@@ -216,6 +221,12 @@ export default function PostDetailClient({
       replies: []
     };
 
+    fetch(`/api/community/posts/${post?.id || postId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: commentText.trim(), authorName: commenterName.trim() })
+    }).catch(() => {});
+
     const next = [...comments, newComment];
     setComments(next);
     setCommentText("");
@@ -259,6 +270,12 @@ export default function PostDetailClient({
       upvotes: 1,
       userVote: "UP"
     };
+
+    fetch(`/api/community/posts/${post?.id || postId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: replyText.trim(), parentId: parentCommentId, authorName: commenterName.trim() })
+    }).catch(() => {});
 
     const next = comments.map((c) => {
       if (c.id === parentCommentId) {

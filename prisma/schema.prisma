@@ -250,3 +250,81 @@ model OwnedInventory {
 
   @@index([robotModelId])
 }
+
+
+model CommunityPost {
+  id             String             @id @default(cuid())
+  slug           String             @unique
+  title          String
+  content        String
+  type           String             @default("DISCUSSION")
+  communityName  String             @default("r/HumanoidTH")
+  authorName     String             @default("Robotics Explorer")
+  authorHandle   String             @default("robotics_explorer")
+  authorBadge    String             @default("Community Member")
+  isVerified     Boolean            @default(false)
+  mediaUrl       String?
+  tags           String[]
+  upvotes        Int                @default(1)
+  downvotes      Int                @default(0)
+  viewsCount     Int                @default(1)
+  isPinned       Boolean            @default(false)
+  comments       CommunityComment[]
+  votes          CommunityVote[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([communityName])
+}
+
+model CommunityComment {
+  id           String             @id @default(cuid())
+  postId       String
+  post         CommunityPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      CommunityComment[] @relation("CommentReplies")
+  content      String
+  authorName   String             @default("Robotics Enthusiast")
+  authorHandle String             @default("enthusiast")
+  authorBadge  String             @default("Robotics Enthusiast")
+  isVerified   Boolean            @default(false)
+  upvotes      Int                @default(1)
+  downvotes    Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+model CommunityVote {
+  id        String        @id @default(cuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userKey   String
+  voteType  String
+  createdAt DateTime      @default(now())
+
+  @@unique([postId, userKey])
+}
+
+model ChallengeSubmission {
+  id             String   @id @default(cuid())
+  challengeId    String
+  teamName       String
+  contactEmail   String
+  solutionTitle  String
+  description    String?
+  repoUrl        String?
+  dockerImage    String?
+  hardwareSpecs  String?
+  benchmarkScore Float?
+  status         String   @default("SUBMITTED")
+  submittedAt    DateTime @default(now())
+
+  @@index([challengeId])
+  @@index([status])
+}

@@ -104,6 +104,8 @@ export default function SubmitPostClient({ topics }: SubmitPostClientProps) {
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
   const [authorName, setAuthorName] = useState("Robotics Explorer");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Drafts & Status State
   const [hasDraft, setHasDraft] = useState(false);
@@ -183,15 +185,67 @@ export default function SubmitPostClient({ topics }: SubmitPostClientProps) {
     }, 10);
   };
 
+  // Handle File Upload to /api/upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setImageUrl(data.url);
+        setFeedbackNotice("อัปโหลดรูปภาพสำเร็จแล้ว");
+        setTimeout(() => setFeedbackNotice(null), 3000);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Handle Publish Post
-  const handlePublish = (e: React.FormEvent) => {
+  const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
 
     const tagsArray = tagsInput
       .split(",")
       .map((t) => t.trim().replace(/^#/, ""))
       .filter(Boolean);
+
+    try {
+      const res = await fetch("/api/community/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+          type: selectedType,
+          tags: tagsArray,
+          mediaUrl: imageUrl.trim() || undefined,
+          authorName: authorName.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        sessionStorage.setItem("humanoidth_new_post_success", title.trim());
+        router.push("/community");
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend API unavailable, saving to local fallback:", err);
+    }
 
     const newPost: CommunityPost = {
       id: `post-${Date.now()}`,
@@ -593,6 +647,30 @@ export default function SubmitPostClient({ topics }: SubmitPostClientProps) {
                 }}
               >
                 <ImageIcon size={16} style={{ color: "#64748b" }} />
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    background: "#19523c",
+                    color: "#ffffff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: isUploading ? "wait" : "pointer",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {isUploading ? "กำลังอัปโหลด..." : "📁 อัปโหลดรูปภาพ"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    style={{ display: "none" }}
+                    disabled={isUploading}
+                  />
+                </label>
                 <input
                   type="text"
                   value={imageUrl}

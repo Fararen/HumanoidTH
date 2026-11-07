@@ -86,6 +86,21 @@ export default function ChallengeDetailClient({
     e.preventDefault();
     if (!titleInput.trim() || !teamInput.trim()) return;
 
+    try {
+      fetch(`/api/challenges/${challenge.id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamName: teamInput.trim(),
+          contactEmail: "team@humanoid.th",
+          solutionTitle: titleInput.trim(),
+          description: descriptionInput.trim(),
+          repoUrl: githubInput.trim(),
+          dockerImage: videoInput.trim()
+        })
+      }).catch(() => {});
+    } catch {}
+
     const rubricScores: Record<string, number> = {};
     let calculatedTotal = 0;
     challenge.rubric.forEach((r) => {

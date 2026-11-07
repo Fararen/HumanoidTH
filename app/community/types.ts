@@ -22,7 +22,9 @@ export interface PostComment {
   author: PostAuthor;
   content: string;
   createdAt: string;
+  timeAgo?: string;
   upvotes: number;
+  downvotes?: number;
   userVote?: "UP" | "DOWN" | null;
   replies?: PostComment[];
 }
@@ -33,6 +35,7 @@ export interface CommunityPost {
   title: string;
   content: string;
   type: PostType;
+  communityName?: string;
   author: PostAuthor;
   tags: string[];
   createdAt: string;

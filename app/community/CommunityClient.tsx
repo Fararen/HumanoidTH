@@ -178,6 +178,11 @@ export default function CommunityClient({
 
   // Handle Voting (Reddit style: UP = Orange, DOWN = Blue)
   const handleVote = (postId: string, direction: "UP" | "DOWN") => {
+    fetch("/api/community/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId, voteType: direction })
+    }).catch(() => {});
     setPosts((prev) => {
       const updated = prev.map((post) => {
         if (post.id !== postId) return post;
