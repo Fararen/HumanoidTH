@@ -196,182 +196,156 @@ export default function ChallengeDetailClient({
         </div>
       )}
 
-      {/* 3. Kaggle-Style Detail Header Banner */}
+      {/* 3. Kaggle-Authentic Header (Open, Editorial, No Box Wrap) */}
       <div
         style={{
-          background: "#ffffff",
-          borderRadius: 12,
-          border: "1px solid rgba(74, 124, 89, 0.18)",
-          padding: "24px 28px",
           display: "flex",
-          flexDirection: "column",
-          gap: 18,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 32,
+          paddingTop: 8,
+          paddingBottom: 4
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
-          {/* Left: Avatar + Title & Meta */}
-          <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
-            <div
-              style={{
-                width: 68,
-                height: 68,
-                borderRadius: 12,
-                background: challenge.bannerGradient,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 36,
-                flexShrink: 0,
-                boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
-              }}
-            >
-              {challenge.bannerEmoji}
-            </div>
+        {/* Left Column: Title, Subtitle, Metadata & Action */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1
+            style={{
+              fontSize: 34,
+              fontWeight: 700,
+              margin: 0,
+              color: "var(--text-primary, #0f172a)",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.2
+            }}
+          >
+            {challenge.title}
+          </h1>
 
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    background: "rgba(25, 82, 60, 0.08)",
-                    color: "#19523c"
-                  }}
-                >
-                  {challenge.kaggleCategory}
-                </span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>•</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{challenge.category}</span>
-                {isOfficial && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      background: "rgba(229, 184, 57, 0.15)",
-                      color: "#b45309",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4
-                    }}
-                  >
-                    <ShieldCheck size={12} /> Official
-                  </span>
-                )}
-              </div>
+          <p
+            style={{
+              fontSize: 15,
+              color: "var(--text-secondary, #64748b)",
+              margin: "10px 0 16px 0",
+              lineHeight: 1.55,
+              maxWidth: 720
+            }}
+          >
+            {challenge.shortDescription}
+          </p>
 
-              <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 8px 0", color: "var(--text-primary)", lineHeight: 1.25 }}>
-                {challenge.title}
-              </h1>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)" }}>
-                <span>Hosted by <strong style={{ color: "var(--text-primary)" }}>{challenge.organizer.name}</strong></span>
-                {challenge.organizer.isVerified && (
-                  <span title="Verified Organizer" style={{ display: "inline-flex", alignItems: "center" }}>
-                    <CheckCircle2 size={14} style={{ color: "var(--success)" }} />
-                  </span>
-                )}
-                <span>•</span>
-                <span>{challenge.schedule.closingText}</span>
-              </div>
-            </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 14,
+              fontSize: 13,
+              color: "var(--text-secondary, #64748b)"
+            }}
+          >
+            <span>Hosted by <strong style={{ color: "var(--text-primary, #1e293b)" }}>{challenge.organizer.name}</strong></span>
+            <span>•</span>
+            <span><strong>{challenge.participantsCount}</strong> Teams</span>
+            <span>•</span>
+            <span style={{ color: "#19523c", fontWeight: 600 }}>{challenge.schedule.closingText}</span>
+            <span>•</span>
+            <span>Prize Pool: <strong style={{ color: "var(--text-primary, #0f172a)" }}>{challenge.prizeDisplay}</strong></span>
           </div>
 
-          {/* Right Side: Prize & Big CTA Button */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                Prize Pool
-              </span>
-              <div style={{ fontSize: 24, fontWeight: 800, color: isOfficial ? "#b45309" : "#19523c" }}>
-                {challenge.prizeDisplay}
-              </div>
-            </div>
-
+          <div style={{ marginTop: 20 }}>
             {isActive ? (
               <button
                 type="button"
                 onClick={() => setIsSubmitModalOpen(true)}
                 className="button primary"
                 style={{
-                  height: 40,
+                  height: 38,
                   padding: "0 22px",
                   fontSize: 13.5,
-                  fontWeight: 800,
+                  fontWeight: 700,
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  boxShadow: "0 4px 12px rgba(25, 82, 60, 0.25)"
+                  borderRadius: 8,
+                  background: "#19523c",
+                  color: "#ffffff",
+                  boxShadow: "0 2px 6px rgba(25, 82, 60, 0.2)"
                 }}
               >
-                <Send size={15} /> Submit Prediction / Entry
+                Submit Prediction / Entry
               </button>
             ) : (
-              <span className="badge" style={{ padding: "6px 12px", fontSize: 12 }}>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>
                 Competition Closed
               </span>
             )}
           </div>
         </div>
 
-        {/* Kaggle Quick Stat Bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 24,
-            paddingTop: 14,
-            borderTop: "1px solid rgba(74, 124, 89, 0.1)",
-            fontSize: 12.5,
-            color: "var(--text-secondary)"
-          }}
-        >
-          <span><strong>{challenge.participantsCount}</strong> Teams</span>
-          <span>•</span>
-          <span><strong>{submissions.length}</strong> Competitors</span>
-          <span>•</span>
-          <span><strong>{challenge.submissionsCount}</strong> Total Entries</span>
-          <span>•</span>
-          <span>Evaluation Metric: <strong style={{ color: "#19523c" }}>{challenge.evaluationMetric}</strong></span>
-        </div>
+        {/* Right Column: Kaggle Cover Image Card */}
+        {challenge.thumbnailUrl && (
+          <div
+            style={{
+              width: 280,
+              height: 120,
+              borderRadius: 14,
+              overflow: "hidden",
+              flexShrink: 0,
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.08)",
+              border: "1px solid var(--border, rgba(0, 0, 0, 0.08))",
+              background: challenge.bannerGradient
+            }}
+          >
+            <img
+              src={challenge.thumbnailUrl}
+              alt={challenge.title}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block"
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* 4. Kaggle-Style Subnav Tabs: Overview, Data, Leaderboard, Rules */}
-      <div style={{ display: "flex", borderBottom: "2px solid rgba(74, 124, 89, 0.16)", gap: 4 }}>
+      {/* 4. Kaggle Minimalist Subnav Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: 28,
+          borderBottom: "1px solid var(--border, rgba(0, 0, 0, 0.12))",
+          marginTop: 8
+        }}
+      >
         {[
-          { id: "overview", label: "Overview", icon: BookOpen },
-          { id: "data", label: "Data & Resources", icon: Database },
-          { id: "leaderboard", label: `Leaderboard (${submissions.length})`, icon: Trophy },
-          { id: "rules", label: "Rules", icon: FileText }
+          { id: "overview", label: "Overview" },
+          { id: "data", label: "Data" },
+          { id: "leaderboard", label: `Leaderboard (${submissions.length})` },
+          { id: "rules", label: "Rules" }
         ].map((tab) => {
           const isSelected = activeTab === tab.id;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as any)}
               style={{
-                padding: "10px 18px",
-                fontSize: 13.5,
-                fontWeight: 700,
+                padding: "8px 0 12px 0",
+                fontSize: 14,
+                fontWeight: isSelected ? 600 : 400,
                 border: "none",
                 background: "transparent",
                 cursor: "pointer",
-                color: isSelected ? "#19523c" : "var(--text-secondary)",
-                borderBottom: `3px solid ${isSelected ? "#19523c" : "transparent"}`,
-                marginBottom: -2,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 140ms ease"
+                color: isSelected ? "var(--text-primary, #0f172a)" : "var(--text-secondary, #64748b)",
+                borderBottom: isSelected ? "3px solid #19523c" : "3px solid transparent",
+                marginBottom: -1,
+                transition: "all 120ms ease"
               }}
             >
-              <Icon size={15} /> {tab.label}
+              {tab.label}
             </button>
           );
         })}
