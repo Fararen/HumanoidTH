@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3, Bot, Database, FileText, GitPullRequest, Home, LayoutDashboard,
-  MapPinned, Network, Package, Send, Settings2, Trophy, UsersRound
+  MapPinned, MessageSquare, Network, Package, Send, Settings2, Trophy, UsersRound
 } from "lucide-react";
 
 type Props = { currentLang?: "en" | "th"; currentRole?: string };
@@ -24,6 +24,7 @@ export default function SidebarNav({ currentLang = "en", currentRole }: Props) {
       { href: "/network", label: th ? "เครือข่าย" : "Knowledge graph", icon: Network },
     ] },
     { label: th ? "วิเคราะห์และชุมชน" : "INSIGHTS & COMMUNITY", items: [
+      { href: "/community", label: th ? "ชุมชนพูดคุย" : "Community", icon: MessageSquare },
       { href: "/challenges", label: th ? "การแข่งขัน" : "Challenges", icon: Trophy },
       { href: "/analytics", label: th ? "Analytics" : "Analytics", icon: BarChart3 },
       { href: "/perspectives", label: th ? "มุมมองวิจัย" : "Research perspectives", icon: FileText },

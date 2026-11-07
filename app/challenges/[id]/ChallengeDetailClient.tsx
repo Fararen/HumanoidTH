@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Fragment } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Challenge, Submission } from "../types";
 import {
@@ -52,6 +53,11 @@ export default function ChallengeDetailClient({
   const [videoInput, setVideoInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load user submissions from localStorage on mount
   useEffect(() => {
@@ -806,17 +812,23 @@ export default function ChallengeDetailClient({
       )}
 
       {/* 9. SUBMIT ENTRY MODAL (KAGGLE STYLE) */}
-      {isSubmitModalOpen && (
+      {mounted && isSubmitModalOpen && createPortal(
         <div
           style={{
             position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.5)",
-            zIndex: 1000,
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(5px)",
+            WebkitBackdropFilter: "blur(5px)",
+            zIndex: 99999,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: 20
+            padding: "20px 16px",
+            boxSizing: "border-box"
           }}
           onClick={() => setIsSubmitModalOpen(false)}
         >
@@ -825,11 +837,12 @@ export default function ChallengeDetailClient({
             style={{
               maxWidth: 580,
               width: "100%",
-              maxHeight: "90vh",
+              maxHeight: "88vh",
               overflowY: "auto",
               padding: 26,
               position: "relative",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.25)"
+              boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+              zIndex: 100000
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -936,7 +949,8 @@ export default function ChallengeDetailClient({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
