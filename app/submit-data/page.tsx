@@ -167,7 +167,8 @@ export default async function SubmitDataPage() {
 
           <label>
             {localT.refUrl}
-            <input name="url" type="url" disabled={!currentUser} placeholder="https://example.com/source-link" />
+            <input name="url" type="url" required disabled={!currentUser} placeholder="https://example.com/source-link" />
+            <small className="muted">A public source link is required so reviewers can verify and publish the record.</small>
           </label>
 
           <label>

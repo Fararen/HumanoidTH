@@ -463,24 +463,25 @@ export default async function AdminConsolePage({ searchParams }: { searchParams:
             <div style={{ display: "grid", gap: "12px", marginTop: "12px" }}>
               {selectedItem && (
                 <div className="notice" style={{ margin: 0 }}>
-                  <strong>Review actions</strong>
-                  <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
-                    <form action={updateSubmissionStatus.bind(null, selectedItem.id, "APPROVED")}>
-                      <button type="submit" className="primary" style={{ background: "var(--success)", borderColor: "var(--success)" }}>
-                        Approve
-                      </button>
-                    </form>
-                    <form action={updateSubmissionStatus.bind(null, selectedItem.id, "REJECTED")}>
-                      <button type="submit" className="button" style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
-                        Reject
-                      </button>
-                    </form>
-                    <form action={updateSubmissionStatus.bind(null, selectedItem.id, "NEEDS_REVIEW")}>
-                      <button type="submit" className="button">
-                        Needs review
-                      </button>
-                    </form>
-                  </div>
+                  <strong>Review and publish</strong>
+                  <p className="muted" style={{ margin: "5px 0 10px", fontSize: 12 }}>
+                    Approval adds the source to the public evidence database. Robot models and contribution claims also appear in their atlas sections; inventory updates and corrections remain evidence for manual catalog work.
+                  </p>
+                  <form action={updateSubmissionStatus.bind(null, selectedItem.id)} className="form" style={{ gap: 8 }}>
+                    <label>
+                      Decision
+                      <select name="status" defaultValue={selectedItem.status === "APPROVED" || selectedItem.status === "REJECTED" ? selectedItem.status : "NEEDS_REVIEW"}>
+                        <option value="NEEDS_REVIEW">Request changes / keep in review</option>
+                        <option value="APPROVED">Approve and publish</option>
+                        <option value="REJECTED">Reject submission</option>
+                      </select>
+                    </label>
+                    <label>
+                      Reviewer note
+                      <textarea name="reviewNotes" rows={3} defaultValue={selectedItem.reviewNotes ?? ""} placeholder="Explain the decision or tell the contributor what to update." />
+                    </label>
+                    <button type="submit" className="primary">Save review decision</button>
+                  </form>
                 </div>
               )}
 

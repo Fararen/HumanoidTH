@@ -36,6 +36,14 @@ function readOptionalDateField(formData: FormData, key: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+async function requireAdminUser() {
+  const currentEmail = (await cookies()).get("user_email")?.value;
+  if (!currentEmail) throw new Error("Administrator access is required.");
+  const user = await prisma.user.findUnique({ where: { email: currentEmail }, select: { id: true, email: true, name: true, role: true } });
+  if (user?.role !== "ADMIN") throw new Error("Administrator access is required.");
+  return user;
+}
+
 function revalidateAtlasCms() {
   const paths = [
     "/",
@@ -69,12 +77,20 @@ export async function createSubmission(formData: FormData) {
     redirect("/profile?from=/submit-data");
   }
 
+  const submissionType = readTextField(formData, "submissionType");
+  const allowedTypes = ["source_url", "robot_model", "owned_inventory_update", "contribution_claim", "event_demo_record", "correction_request"];
+  const title = readTextField(formData, "title");
+  const url = readOptionalUrlField(formData, "url");
+  if (!allowedTypes.includes(submissionType)) throw new Error("Choose a valid submission type.");
+  if (!title) throw new Error("A title is required.");
+  if (!url) throw new Error("A public source URL is required so reviewers can verify this record.");
+
   await prisma.submittedData.create({
     data: {
-      submissionType: String(formData.get("submissionType") ?? "source_url"),
-      title: String(formData.get("title") ?? ""),
-      url: canonicalizeUrl(String(formData.get("url") ?? "")) || null,
-      notes: String(formData.get("notes") ?? "") || null,
+      submissionType,
+      title,
+      url,
+      notes: readOptionalTextField(formData, "notes"),
       submitterName: user.name || null,
       submitterContact: user.email,
       submittedById: user.id,
@@ -87,9 +103,95 @@ export async function createSubmission(formData: FormData) {
   redirect("/profile");
 }
 
-export async function updateSubmissionStatus(id: string, status: "APPROVED" | "REJECTED" | "NEEDS_REVIEW") {
-  await prisma.submittedData.update({ where: { id }, data: { status } });
+export async function updateSubmissionStatus(id: string, formData: FormData) {
+  const reviewer = await requireAdminUser();
+  const requestedStatus = readTextField(formData, "status");
+  const reviewNotes = readOptionalTextField(formData, "reviewNotes");
+  if (!["APPROVED", "REJECTED", "NEEDS_REVIEW"].includes(requestedStatus)) throw new Error("Choose a valid review decision.");
+  const status = requestedStatus as "APPROVED" | "REJECTED" | "NEEDS_REVIEW";
+
+  const submission = await prisma.submittedData.findUnique({ where: { id } });
+  if (!submission) throw new Error("Submission not found.");
+
+  if (status === "APPROVED") {
+    if (!submission.url) {
+      await prisma.submittedData.update({
+        where: { id },
+        data: { status: "NEEDS_REVIEW", reviewNotes: reviewNotes || "Add a public source URL before approving this submission." }
+      });
+      revalidateAtlasCms();
+      revalidatePath("/profile");
+      return;
+    }
+
+    const sourceUrl = submission.url;
+    await prisma.$transaction(async (tx) => {
+      const existingSource = await tx.sourceRecord.findUnique({ where: { url: sourceUrl }, select: { id: true } });
+      if (!existingSource) {
+        await tx.sourceRecord.create({
+          data: {
+            sourceType: "SUBMISSION",
+            title: submission.title,
+            url: sourceUrl,
+            excerpt: submission.notes || "",
+            relevanceStatus: "ACCEPTED",
+            relevanceReason: "Approved community submission",
+            relevanceConfidence: 0.8,
+            rawMeta: { submittedDataId: submission.id, submissionType: submission.submissionType, reviewedBy: reviewer.email }
+          }
+        });
+      }
+
+      if (submission.submissionType === "robot_model") {
+        await tx.robotModel.upsert({
+          where: { canonicalName: submission.title },
+          create: {
+            canonicalName: submission.title,
+            robotType: "humanoid",
+            thailandStatus: "observed_in_thailand",
+            statusConfidence: 0.8,
+            officialUrl: sourceUrl,
+            description: submission.notes,
+            sourceMeta: { submittedDataId: submission.id, reviewedBy: reviewer.email }
+          },
+          update: {
+            officialUrl: sourceUrl,
+            description: submission.notes,
+            statusConfidence: 0.8,
+            sourceMeta: { submittedDataId: submission.id, reviewedBy: reviewer.email }
+          }
+        });
+      } else if (submission.submissionType === "contribution_claim") {
+        await tx.contribution.upsert({
+          where: { sourceUrl },
+          create: {
+            title: submission.title,
+            contributionType: "community_submission",
+            contributorName: submission.submitterName,
+            contributorType: "community",
+            description: submission.notes,
+            sourceUrl,
+            verificationStatus: "APPROVED"
+          },
+          update: {
+            title: submission.title,
+            description: submission.notes,
+            verificationStatus: "APPROVED"
+          }
+        });
+      }
+
+      await tx.submittedData.update({
+        where: { id },
+        data: { status: "APPROVED", reviewNotes, submitterContact: submission.submitterContact || reviewer.email }
+      });
+    });
+  } else {
+    await prisma.submittedData.update({ where: { id }, data: { status, reviewNotes } });
+  }
+
   revalidateAtlasCms();
+  revalidatePath("/profile");
 }
 
 export async function runDataPull(formData: FormData) {
@@ -351,6 +453,7 @@ export async function upsertContributionAction(formData: FormData) {
 }
 
 export async function upsertSubmittedDataAction(formData: FormData) {
+  await requireAdminUser();
   const id = readTextField(formData, "id");
   const title = readTextField(formData, "title");
   const submissionType = readTextField(formData, "submissionType");
@@ -368,6 +471,10 @@ export async function upsertSubmittedDataAction(formData: FormData) {
     status: readOptionalTextField(formData, "status") as any || "QUEUED",
     reviewNotes: readOptionalTextField(formData, "reviewNotes")
   };
+
+  if (payload.status === "APPROVED") {
+    throw new Error("Use the review decision form to approve and publish a submission.");
+  }
 
   if (id) {
     await prisma.submittedData.update({ where: { id }, data: payload });

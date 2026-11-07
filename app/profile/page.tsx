@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { loginAsUser, logoutUser, registerAndLoginUser } from "@/app/actions";
 import { getTranslation } from "@/lib/translations";
+import { ArrowRight, Award, BadgeCheck, Bot, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
+import styles from "./Profile.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -11,195 +14,155 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false }
 };
 
+const reviewStatuses = ["QUEUED", "NEEDS_REVIEW", "ANALYZED", "FETCHING"];
+
+function statusClass(status: string) {
+  if (status === "APPROVED") return styles.statusApproved;
+  if (["REJECTED", "FAILED"].includes(status)) return styles.statusRejected;
+  return styles.statusReview;
+}
+
+function workflowProgress(status: string) {
+  if (status === "APPROVED") return 4;
+  if (["NEEDS_REVIEW", "ANALYZED"].includes(status)) return 3;
+  if (["FETCHING", "FAILED"].includes(status)) return 2;
+  if (status === "REJECTED") return 3;
+  return 1;
+}
+
 export default async function ProfilePage() {
   const cookieStore = await cookies();
   const currentEmail = cookieStore.get("user_email")?.value;
-  const currentRole = cookieStore.get("user_role")?.value;
+  const currentRole = cookieStore.get("user_role")?.value || "USER";
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
 
-  let users: any[] = [];
-  let currentUser: any = null;
-  let userSubmissions: any[] = [];
+  let users: Array<{ id: string; name: string | null; email: string; role: string; createdAt: Date }> = [];
+  let currentUser: { name: string | null; email: string; createdAt: Date; submissions: Array<{ id: string; title: string; url: string | null; submissionType: string; status: string; reviewNotes: string | null; notes: string | null; createdAt: Date }> } | null = null;
+  let databaseOffline = false;
+
   try {
-    [users, currentUser] = await Promise.all([
-      prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
-      currentEmail
-        ? prisma.user.findUnique({
-            where: { email: currentEmail },
-            include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 } }
-          })
-        : Promise.resolve(null)
+    const [userList, account] = await Promise.all([
+      currentRole === "ADMIN" ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 20, select: { id: true, name: true, email: true, role: true, createdAt: true } }) : Promise.resolve([]),
+      currentEmail ? prisma.user.findUnique({ where: { email: currentEmail }, include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 } } }) : Promise.resolve(null)
     ]);
-    userSubmissions = currentUser?.submissions ?? [];
+    users = userList;
+    currentUser = account ? { name: account.name, email: account.email, createdAt: account.createdAt, submissions: account.submissions } : null;
   } catch (error) {
-    console.error("Failed to query users in profile page:", error);
+    console.error("Failed to query profile data:", error);
+    databaseOffline = true;
   }
 
-  return (
-    <>
-      <h1>{t.profileTitle}</h1>
-      <p className="muted" style={{ marginBottom: "18px" }}>{t.profileDesc}</p>
-      
-      {currentEmail ? (
-        <section className="panel" style={{ border: "1px solid var(--accent)", marginBottom: "20px" }}>
-          <h2>Current Session Status</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "10px 0" }}>
-            <div><strong>Logged in as:</strong> <code>{currentEmail}</code></div>
-            <div><strong>Role:</strong> <span className={`badge ${currentRole === "ADMIN" ? "ok" : ""}`}>{currentRole}</span></div>
+  const submissions = currentUser?.submissions ?? [];
+  const approved = submissions.filter((item) => item.status === "APPROVED").length;
+  const approvedShowcase = submissions.filter((item) => item.status === "APPROVED").slice(0, 3);
+  const inReview = submissions.filter((item) => reviewStatuses.includes(item.status)).length;
+  const displayName = currentUser?.name || currentUser?.email.split("@")[0] || "Atlas member";
+  const showcaseCopy = lang === "th" ? {
+    eyebrow: "ผลงานใน ATLAS",
+    title: "Contribution showcase",
+    description: "รายการที่ผ่านการอนุมัติและเผยแพร่แล้ว",
+    approved: "เผยแพร่แล้ว",
+    emptyTitle: "ผลงานแรกของคุณจะแสดงที่นี่",
+    emptyDescription: "เมื่อรายการผ่านการตรวจทานและอนุมัติ ระบบจะแสดงหลักฐานที่เผยแพร่แล้วในส่วนนี้",
+    source: "เปิดหลักฐาน",
+    add: "ส่งผลงาน"
+  } : {
+    eyebrow: "ATLAS CONTRIBUTIONS",
+    title: "Contribution showcase",
+    description: "Approved work published to the public atlas.",
+    approved: "published records",
+    emptyTitle: "Your first published record will appear here",
+    emptyDescription: "Once a submission is reviewed and approved, its public evidence link will be featured here.",
+    source: "View evidence",
+    add: "Add a contribution"
+  };
+
+  return <div className={styles.profilePage}>
+    <header className={styles.pageHeading}>
+      <div><span className={styles.kicker}>HUMANOIDTH ACCOUNT</span><h1>{t.profileTitle}</h1><p>{t.profileDesc}</p></div>
+      <Link className={styles.headingLink} href="/submit-data">Contribute to the atlas <ArrowRight size={16} aria-hidden="true" /></Link>
+    </header>
+
+    {databaseOffline && <div className={styles.warning} role="status">Account data is temporarily unavailable. Please refresh in a moment.</div>}
+
+    {!currentEmail ? <div className={styles.signedOutLayout}>
+      <section className={styles.welcomeCard}>
+        <span className={styles.welcomeIcon}><UserRound size={22} aria-hidden="true" /></span>
+        <span className={styles.kicker}>YOUR ATLAS WORKSPACE</span>
+        <h2>Keep your contributions in one place.</h2>
+        <p>Sign in with your email to follow submissions, check review progress, and build your public contribution history.</p>
+        <div className={styles.benefitList}><span><BadgeCheck size={17} aria-hidden="true" />Track submission status</span><span><Database size={17} aria-hidden="true" />Keep a record of your evidence</span><span><Users size={17} aria-hidden="true" />Connect your work to the community</span></div>
+        <div className={styles.welcomeFoot}><ShieldCheck size={16} aria-hidden="true" />A simple account for participating in the public atlas</div>
+      </section>
+
+      <section className={styles.authCard}>
+        <div className={styles.cardHeading}><span className={styles.kicker}>WELCOME</span><h2>Sign in or create an account</h2><p>Use an email address you can access.</p></div>
+        <form action={registerAndLoginUser} className={styles.authForm}>
+          <label>Email address<input name="email" type="email" required placeholder="you@example.com" autoComplete="email" /></label>
+          <label>Name <span className={styles.optional}>(optional)</span><input name="name" placeholder="Your name" autoComplete="name" /></label>
+          <input type="hidden" name="role" value="USER" />
+          <button type="submit" className={styles.primaryButton}>Continue with email <ArrowRight size={16} aria-hidden="true" /></button>
+        </form>
+        <details className={styles.demoAccess}><summary><CircleHelp size={15} aria-hidden="true" />Demo access</summary><div className={styles.demoButtons}>
+          <form action={loginAsUser.bind(null, "creativelab.co.th@gmail.com", "ADMIN")}><button type="submit">Administrator demo</button></form>
+          <form action={loginAsUser.bind(null, "researcher@example.com", "RESEARCHER")}><button type="submit">Researcher demo</button></form>
+        </div></details>
+      </section>
+    </div> : <>
+      <section className={styles.accountOverview}>
+        <div className={styles.identityCard}>
+          <div className={styles.avatar}>{displayName.slice(0, 1).toUpperCase()}</div>
+          <div className={styles.identityCopy}><span className={styles.kicker}>SIGNED IN</span><h2>{displayName}</h2><p>{currentEmail}</p><span className={`${styles.roleBadge} ${currentRole === "ADMIN" ? styles.adminRole : ""}`}><ShieldCheck size={13} aria-hidden="true" />{currentRole}</span></div>
+          <form action={logoutUser}><button type="submit" className={styles.logoutButton}>Sign out</button></form>
+        </div>
+        <div className={styles.statsGrid} aria-label="Contribution summary">
+          <article className={styles.statCard}><span><Database size={16} aria-hidden="true" />Submitted</span><strong>{submissions.length}</strong><small>records shared</small></article>
+          <article className={styles.statCard}><span><BadgeCheck size={16} aria-hidden="true" />Approved</span><strong>{approved}</strong><small>accepted into Atlas</small></article>
+          <article className={styles.statCard}><span><Clock3 size={16} aria-hidden="true" />In review</span><strong>{inReview}</strong><small>awaiting review</small></article>
+        </div>
+      </section>
+
+      <section className={styles.showcaseSection} aria-labelledby="profile-showcase-title">
+        <header className={styles.showcaseHeading}>
+          <div><span className={styles.kicker}>{showcaseCopy.eyebrow}</span><h2 id="profile-showcase-title">{showcaseCopy.title}</h2><p>{showcaseCopy.description}</p></div>
+          <Link href="/submit-data" className={styles.secondaryButton}>{showcaseCopy.add} <ArrowRight size={14} aria-hidden="true" /></Link>
+        </header>
+        <div className={styles.showcaseGrid}>
+          <article className={styles.showcaseImpact}>
+            <span className={styles.showcaseImpactIcon}><Award size={19} aria-hidden="true" /></span>
+            <span className={styles.showcaseImpactLabel}>{showcaseCopy.approved}</span>
+            <strong>{approved}</strong>
+            <span className={styles.showcaseImpactFoot}>{displayName}</span>
+          </article>
+          <div className={styles.showcaseRecords}>
+            {approvedShowcase.length ? approvedShowcase.map((item) => <article className={styles.showcaseRecord} key={item.id}>
+              <span className={styles.showcaseRecordIcon}><BadgeCheck size={17} aria-hidden="true" /></span>
+              <div className={styles.showcaseRecordBody}><span className={styles.showcaseType}>{item.submissionType.replace(/[_-]/g, " ")}</span><h3>{item.title}</h3><p>{item.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</p></div>
+              {item.url && <a href={item.url} target="_blank" rel="noreferrer" className={styles.showcaseSource} aria-label={`${showcaseCopy.source}: ${item.title}`}><ExternalLink size={15} aria-hidden="true" /></a>}
+            </article>) : <article className={styles.showcaseEmpty}><span><Database size={19} aria-hidden="true" /></span><div><strong>{showcaseCopy.emptyTitle}</strong><p>{showcaseCopy.emptyDescription}</p></div></article>}
           </div>
-          
-          <form action={logoutUser} style={{ marginTop: "14px" }}>
-            <button className="primary" style={{ background: "var(--danger)", borderColor: "var(--danger)" }}>
-              Logout
-            </button>
-          </form>
-        </section>
-      ) : (
-        <section className="panel" style={{ border: "1px solid var(--warning)", marginBottom: "20px" }}>
-          <h2>Authentication & Registration</h2>
-          <p className="muted" style={{ marginBottom: 14 }}>
-            Register a new account or log in with an existing email to track submissions and show your contribution history.
-          </p>
+        </div>
+      </section>
 
-          <form action={registerAndLoginUser} className="form" style={{ maxWidth: "400px", gap: "12px" }}>
-            <label>
-              Email Address
-              <input name="email" type="email" required placeholder="ichiro.kato@waseda.jp" />
-            </label>
-            <label>
-              Full Name (Optional)
-              <input name="name" placeholder="Ichiro Kato" />
-            </label>
-            <label>
-              Role
-              <select name="role" defaultValue="USER">
-                <option value="USER">User (Read-only)</option>
-                <option value="RESEARCHER">Researcher</option>
-                <option value="ADMIN">Administrator</option>
-              </select>
-            </label>
-            <button type="submit" className="primary" style={{ marginTop: "6px" }}>
-              Log In / Register
-            </button>
-          </form>
-
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px", marginTop: "14px" }}>
-            <span className="muted" style={{ fontSize: "12px" }}>Quick Simulators:</span>
-            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-              <form action={loginAsUser.bind(null, "creativelab.co.th@gmail.com", "ADMIN")}>
-                <button type="submit" className="button" style={{ fontSize: "11px", minHeight: "28px" }}>
-                  Login as Administrator
-                </button>
-              </form>
-              <form action={loginAsUser.bind(null, "researcher@example.com", "RESEARCHER")}>
-                <button type="submit" className="button" style={{ fontSize: "11px", minHeight: "28px" }}>
-                  Login as Researcher
-                </button>
-              </form>
+      <section className={styles.submissionsSection}>
+        <header className={styles.sectionHeading}><div><span className={styles.kicker}>YOUR ACTIVITY</span><h2>Submission history</h2><p>Follow the records you have shared with the atlas.</p></div><Link href="/submit-data" className={styles.secondaryButton}>Submit a record <ArrowRight size={15} aria-hidden="true" /></Link></header>
+        {submissions.length ? <div className={styles.submissionList}>{submissions.map((item) => <article className={styles.submissionItem} key={item.id}>
+          <div className={styles.submissionIcon}><Bot size={18} aria-hidden="true" /></div>
+          <div className={styles.submissionMain}><h3>{item.title}</h3><p>{item.submissionType.replace(/[_-]/g, " ")} · {item.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</p>{item.reviewNotes || item.notes ? <small>{item.reviewNotes || item.notes}</small> : null}
+            <div className={`${styles.workflow} ${["REJECTED", "FAILED"].includes(item.status) ? styles.workflowStopped : ""}`} aria-label={`Submission workflow: ${item.status.toLowerCase()}`}>
+              {[["Submitted", 1], ["Processing", 2], ["Review", 3], ["In Atlas", 4]].map(([label, step]) => <span key={label} className={`${styles.workflowStep} ${Number(step) <= workflowProgress(item.status) ? styles.workflowComplete : ""} ${Number(step) === workflowProgress(item.status) && item.status !== "APPROVED" ? styles.workflowCurrent : ""}`}><i />{label}</span>)}
             </div>
           </div>
-        </section>
-      )}
+          <span className={`${styles.statusBadge} ${statusClass(item.status)}`}>{item.status.replace(/_/g, " ").toLowerCase()}</span>
+          {item.url ? <a className={styles.sourceLink} href={item.url} target="_blank" rel="noreferrer">Open source <ArrowRight size={13} aria-hidden="true" /></a> : null}
+        </article>)}</div> : <div className={styles.emptyState}><span><Database size={20} aria-hidden="true" /></span><strong>No submissions yet</strong><p>Share a robot model, research source, or correction to start your contribution history.</p><Link href="/submit-data" className={styles.primaryButton}>Submit your first record <ArrowRight size={16} aria-hidden="true" /></Link></div>}
+      </section>
+    </>}
 
-      {currentUser && (
-        <section className="panel" style={{ marginBottom: "20px" }}>
-          <h2>Community Contribution Profile</h2>
-          <p className="muted" style={{ marginBottom: 12 }}>
-            Submissions linked to this account appear here so you can track review progress and show what you have contributed to the atlas.
-          </p>
-          <div className="stat-grid" style={{ marginBottom: 14 }}>
-            <div className="metric-card">
-              <span>Total submitted</span>
-              <strong>{userSubmissions.length}</strong>
-            </div>
-            <div className="metric-card">
-              <span>Approved</span>
-              <strong>{userSubmissions.filter((item) => item.status === "APPROVED").length}</strong>
-            </div>
-            <div className="metric-card">
-              <span>In review</span>
-              <strong>{userSubmissions.filter((item) => ["QUEUED", "NEEDS_REVIEW", "ANALYZED", "FETCHING"].includes(item.status)).length}</strong>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Submission</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Reviewer Notes</th>
-                  <th>Submitted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userSubmissions.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.title}</strong>
-                      {item.url && (
-                        <div style={{ marginTop: 4 }}>
-                          <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, wordBreak: "break-all" }}>
-                            {item.url}
-                          </a>
-                        </div>
-                      )}
-                    </td>
-                    <td><span className="badge">{item.submissionType.replace(/_/g, " ")}</span></td>
-                    <td>
-                      <span className={`badge ${item.status === "APPROVED" ? "ok" : item.status === "REJECTED" || item.status === "FAILED" ? "danger" : "warn"}`}>
-                        {item.status.toLowerCase()}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 280 }}>
-                      {item.reviewNotes || item.notes || "Manual review pending."}
-                    </td>
-                    <td style={{ fontSize: 12 }}>{item.createdAt.toLocaleDateString()}</td>
-                  </tr>
-                ))}
-                {!userSubmissions.length && (
-                  <tr>
-                    <td className="empty" colSpan={5}>No submissions linked to this profile yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      <h2>Corpus Users List ({users.length})</h2>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Registered At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.name || "N/A"}</td>
-                <td><code>{user.email}</code></td>
-                <td>
-                  <span className={`badge ${user.role === "ADMIN" ? "ok" : ""}`}>{user.role}</span>
-                </td>
-                <td>{user.createdAt.toLocaleString()}</td>
-              </tr>
-            ))}
-            {!users.length && (
-              <tr>
-                <td className="empty" colSpan={4}>No users registered in database.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+    {currentRole === "ADMIN" && <section className={styles.adminSection}>
+      <header className={styles.sectionHeading}><div><span className={styles.kicker}>ADMINISTRATION</span><h2>Atlas accounts</h2><p>Recently registered accounts in this workspace.</p></div><span className={styles.userCount}>{users.length} accounts</span></header>
+      <div className={styles.userList}>{users.map((user) => <article className={styles.userRow} key={user.id}><span className={styles.userAvatar}>{(user.name || user.email).slice(0, 1).toUpperCase()}</span><span><strong>{user.name || "Unnamed member"}</strong><small>{user.email}</small></span><span className={styles.roleBadge}>{user.role}</span><time>{user.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</time></article>)}{!users.length && <p className={styles.emptyUsers}>No accounts found.</p>}</div>
+    </section>}
+  </div>;
 }
