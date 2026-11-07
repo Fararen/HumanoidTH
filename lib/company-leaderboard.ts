@@ -349,6 +349,11 @@ export async function ensureM02Seeded() {
   const count = await prisma.companyModelEvaluation.count();
   if (count === 0) {
     for (const item of INITIAL_M02_DEMO_RECORDS) {
+      const company = await prisma.company.upsert({
+        where: { name: item.companyName },
+        update: { isVerified: true },
+        create: { name: item.companyName, isVerified: true }
+      });
       await prisma.companyModelEvaluation.upsert({
         where: {
           modelCode_version: {
@@ -359,23 +364,106 @@ export async function ensureM02Seeded() {
         update: {},
         create: {
           ...item,
+          companyId: company.id,
           evidenceLinksJson: item.evidenceLinksJson as unknown as object,
           publishedFieldsJson: item.publishedFieldsJson as unknown as object
         }
       });
     }
+    return;
+  }
+
+  for (const item of INITIAL_M02_DEMO_RECORDS) {
+    const company = await prisma.company.upsert({
+      where: { name: item.companyName },
+      update: { isVerified: true },
+      create: { name: item.companyName, isVerified: true }
+    });
+    await prisma.companyModelEvaluation.updateMany({
+      where: { modelCode: item.modelCode, version: item.version, companyId: null },
+      data: { companyId: company.id }
+    });
   }
 }
 
 export async function resetM02DemoState() {
   await prisma.companyModelEvaluation.deleteMany({});
   for (const item of INITIAL_M02_DEMO_RECORDS) {
+    const company = await prisma.company.upsert({
+      where: { name: item.companyName },
+      update: { isVerified: true },
+      create: { name: item.companyName, isVerified: true }
+    });
     await prisma.companyModelEvaluation.create({
       data: {
         ...item,
+        companyId: company.id,
         evidenceLinksJson: item.evidenceLinksJson as unknown as object,
         publishedFieldsJson: item.publishedFieldsJson as unknown as object
       }
     });
+  }
+}
+
+function isMissingCompanyEvaluationTable(error: unknown) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2021"
+  );
+}
+
+export function getM02FallbackModels(groupId: string): CompanyModelRecord[] {
+  return INITIAL_M02_DEMO_RECORDS
+    .filter((item) => item.groupId === groupId)
+    .map((item) => ({
+      id: item.id,
+      modelCode: item.modelCode,
+      version: item.version,
+      groupId: item.groupId,
+      groupName: item.groupName,
+      protocolCode: item.protocolCode,
+      companyName: item.companyName,
+      contactName: item.contactName,
+      contactEmail: item.contactEmail,
+      contactPhone: item.contactPhone,
+      modelName: item.modelName,
+      robotClass: item.robotClass,
+      hardwareSpec: item.hardwareSpec,
+      firmwareVersion: item.firmwareVersion,
+      taskEvaluated: item.taskEvaluated,
+      testConditions: item.testConditions,
+      workflowStatus: item.workflowStatus,
+      safetyStatus: item.safetyStatus,
+      precisionMm: item.precisionMm,
+      speedSec: item.speedSec,
+      evaluatorName: item.evaluatorName,
+      evaluatorNotes: item.evaluatorNotes,
+      sampleReportTitle: item.sampleReportTitle,
+      sampleReportSummary: item.sampleReportSummary,
+      evidenceLinks: [...item.evidenceLinksJson],
+      publishedFields: { ...item.publishedFieldsJson },
+      isPublished: item.isPublished,
+      allowContact: item.allowContact,
+      isDemoData: item.isDemoData,
+      evaluatedAt: item.evaluatedAt.toISOString(),
+      publishedAt: item.publishedAt?.toISOString() ?? null,
+      updatedAt: item.evaluatedAt.toISOString()
+    }));
+}
+
+export async function loadM02CompanyModels(groupId: string) {
+  try {
+    await ensureM02Seeded();
+    const rows = await prisma.companyModelEvaluation.findMany({
+      where: { groupId },
+      orderBy: [{ precisionMm: "asc" }, { speedSec: "asc" }, { createdAt: "asc" }]
+    });
+    return { models: rows.map(serializeCompanyModel), isDatabaseAvailable: true };
+  } catch (error) {
+    if (!isMissingCompanyEvaluationTable(error)) throw error;
+    console.warn("CompanyModelEvaluation table is unavailable; showing read-only M02 demo data.");
+    return { models: getM02FallbackModels(groupId), isDatabaseAvailable: false };
   }
 }

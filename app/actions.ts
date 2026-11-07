@@ -103,6 +103,48 @@ export async function createSubmission(formData: FormData) {
   redirect("/profile");
 }
 
+export async function createCompetitionHostRequest(formData: FormData) {
+  const cookieStore = await cookies();
+  const currentEmail = cookieStore.get("user_email")?.value;
+  if (!currentEmail) redirect("/profile?from=/challenges/host");
+
+  const user = await prisma.user.findUnique({ where: { email: currentEmail } });
+  if (!user) redirect("/profile?from=/challenges/host");
+
+  const title = readTextField(formData, "title");
+  const format = readTextField(formData, "format");
+  const category = readTextField(formData, "category");
+  const proposedDate = readTextField(formData, "proposedDate");
+  const summary = readTextField(formData, "summary");
+  const evaluation = readTextField(formData, "evaluation");
+
+  if (!title || !format || !category || !summary || !evaluation) {
+    throw new Error("Add a title, format, category, overview, and evaluation criteria.");
+  }
+
+  await prisma.submittedData.create({
+    data: {
+      submissionType: "competition_host_request",
+      title,
+      notes: [
+        `Format: ${format}`,
+        `Category: ${category}`,
+        proposedDate ? `Proposed start: ${proposedDate}` : null,
+        `Overview: ${summary}`,
+        `Evaluation: ${evaluation}`
+      ].filter(Boolean).join("\n"),
+      submitterName: user.name || null,
+      submitterContact: user.email,
+      submittedById: user.id,
+      status: "QUEUED"
+    }
+  });
+
+  revalidatePath("/challenges");
+  revalidatePath("/profile");
+  redirect("/profile?competitionRequest=received");
+}
+
 export async function updateSubmissionStatus(id: string, formData: FormData) {
   const reviewer = await requireAdminUser();
   const requestedStatus = readTextField(formData, "status");
@@ -234,16 +276,34 @@ export async function runDataPull(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function loginAsUser(email: string, role: string) {
+export async function loginAsUser(email: string, role: string, companyName?: string) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo account access is disabled in production.");
+  }
+
+  const accountRole = role === "ADMIN" ? "ADMIN" : role === "COMPANY" ? "COMPANY" : "USER";
   const user = await prisma.user.upsert({
     where: { email },
-    update: { role: role as any },
+    update: { role: accountRole },
     create: {
       email,
       name: email.split("@")[0],
-      role: role as any
+      role: accountRole
     }
   });
+
+  if (accountRole === "COMPANY" && companyName) {
+    const company = await prisma.company.upsert({
+      where: { name: companyName },
+      update: {},
+      create: { name: companyName }
+    });
+    await prisma.companyMembership.upsert({
+      where: { userId_companyId: { userId: user.id, companyId: company.id } },
+      update: {},
+      create: { userId: user.id, companyId: company.id, role: "OWNER" }
+    });
+  }
 
   const cookieStore = await cookies();
   cookieStore.set("user_email", user.email, { path: "/" });
@@ -261,24 +321,42 @@ export async function loginAsUser(email: string, role: string) {
 export async function registerAndLoginUser(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  const role = String(formData.get("role") ?? "USER") as any;
+  const accountType = String(formData.get("accountType") ?? "USER") === "COMPANY" ? "COMPANY" : "USER";
+  const companyName = String(formData.get("companyName") ?? "").trim();
   const redirectTo = String(formData.get("redirectTo") ?? "/profile");
 
   if (!email) {
     throw new Error("Email is required");
   }
+  if (accountType === "COMPANY" && !companyName) {
+    throw new Error("Company name is required for a company account");
+  }
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {
-      name: name || undefined,
-      role
-    },
-    create: {
-      email,
-      name: name || email.split("@")[0],
-      role
+  const user = await prisma.$transaction(async (tx) => {
+    const account = await tx.user.upsert({
+      where: { email },
+      update: {
+        name: name || undefined,
+        role: accountType
+      },
+      create: {
+        email,
+        name: name || email.split("@")[0],
+        role: accountType
+      }
+    });
+
+    if (accountType === "COMPANY") {
+      const existingCompany = await tx.company.findUnique({ where: { name: companyName } });
+      const company = existingCompany || await tx.company.create({ data: { name: companyName } });
+      await tx.companyMembership.upsert({
+        where: { userId_companyId: { userId: account.id, companyId: company.id } },
+        update: {},
+        create: { userId: account.id, companyId: company.id, role: existingCompany ? "EDITOR" : "OWNER" }
+      });
     }
+
+    return account;
   });
 
   const cookieStore = await cookies();

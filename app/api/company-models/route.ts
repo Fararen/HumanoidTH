@@ -1,27 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import {
   DEFAULT_GROUP_ID,
   M02_GROUPS,
   ensureM02Seeded,
+  loadM02CompanyModels,
   resetM02DemoState,
   serializeCompanyModel
 } from "@/lib/company-leaderboard";
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureM02Seeded();
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get("groupId") || DEFAULT_GROUP_ID;
-
-    const rows = await prisma.companyModelEvaluation.findMany({
-      where: { groupId },
-      orderBy: [{ precisionMm: "asc" }, { speedSec: "asc" }, { createdAt: "asc" }]
-    });
+    const { models, isDatabaseAvailable } = await loadM02CompanyModels(groupId);
 
     return NextResponse.json({
       success: true,
-      models: rows.map(serializeCompanyModel)
+      models,
+      isDatabaseAvailable
     });
   } catch (error) {
     console.error("GET /api/company-models error:", error);
@@ -34,10 +32,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureM02Seeded();
     const body = await request.json();
+    const sessionUser = await getSessionUser();
+
+    if (!sessionUser || !["COMPANY", "ADMIN"].includes(sessionUser.role)) {
+      return NextResponse.json({ success: false, error: "บัญชีบริษัทหรือผู้ดูแลระบบเท่านั้นที่จัดการคำขอประเมินได้" }, { status: 403 });
+    }
+
+    const companyMembership = sessionUser.role === "COMPANY"
+      ? await prisma.companyMembership.findFirst({ where: { userId: sessionUser.id }, include: { company: true } })
+      : null;
+    if (sessionUser.role === "COMPANY" && !companyMembership) {
+      return NextResponse.json({ success: false, error: "ไม่พบบริษัทที่เชื่อมกับบัญชีนี้" }, { status: 403 });
+    }
+
+    await ensureM02Seeded();
 
     if (body?.action === "RESET_DEMO") {
+      if (sessionUser.role !== "ADMIN") {
+        return NextResponse.json({ success: false, error: "ผู้ดูแลระบบเท่านั้นที่รีเซ็ตข้อมูลเดโมได้" }, { status: 403 });
+      }
       await resetM02DemoState();
       const rows = await prisma.companyModelEvaluation.findMany({
         orderBy: [{ precisionMm: "asc" }, { speedSec: "asc" }]
@@ -51,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const groupId = String(body.groupId || DEFAULT_GROUP_ID).trim();
     const groupMeta = M02_GROUPS[groupId] || M02_GROUPS[DEFAULT_GROUP_ID];
-    const companyName = String(body.companyName || "").trim();
+    const companyName = companyMembership?.company.name || String(body.companyName || "").trim();
     const contactName = String(body.contactName || "").trim();
     const contactEmail = String(body.contactEmail || "").trim();
     const contactPhone = body.contactPhone ? String(body.contactPhone).trim() : null;
@@ -103,6 +117,7 @@ export async function POST(request: NextRequest) {
       },
       create: {
         id: modelCode,
+        companyId: companyMembership?.companyId,
         modelCode,
         version,
         groupId: groupMeta.groupId,

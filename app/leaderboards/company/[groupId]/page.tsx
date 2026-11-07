@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_GROUP_ID,
   M02_GROUPS,
-  ensureM02Seeded,
-  serializeCompanyModel
+  loadM02CompanyModels
 } from "@/lib/company-leaderboard";
 import CompanyLeaderboardClient from "../CompanyLeaderboardClient";
 
@@ -21,22 +19,16 @@ export default async function CompanyLeaderboardGroupPage({
 }: {
   params: Promise<{ groupId: string }>;
 }) {
-  await ensureM02Seeded();
   const { groupId } = await params;
   const resolvedGroupId = M02_GROUPS[groupId] ? groupId : DEFAULT_GROUP_ID;
   const groupMeta = M02_GROUPS[resolvedGroupId];
-
-  const rows = await prisma.companyModelEvaluation.findMany({
-    where: { groupId: resolvedGroupId },
-    orderBy: [{ precisionMm: "asc" }, { speedSec: "asc" }, { createdAt: "asc" }]
-  });
-
-  const models = rows.map(serializeCompanyModel);
+  const { models, isDatabaseAvailable } = await loadM02CompanyModels(resolvedGroupId);
 
   return (
     <CompanyLeaderboardClient
       groupMeta={groupMeta}
       initialModels={models}
+      isDatabaseAvailable={isDatabaseAvailable}
     />
   );
 }

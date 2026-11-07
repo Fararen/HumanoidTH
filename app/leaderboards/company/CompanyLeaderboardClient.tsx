@@ -33,11 +33,13 @@ interface GroupMeta {
 interface CompanyLeaderboardClientProps {
   groupMeta: GroupMeta;
   initialModels: CompanyModelRecord[];
+  isDatabaseAvailable: boolean;
 }
 
 export default function CompanyLeaderboardClient({
   groupMeta,
-  initialModels
+  initialModels,
+  isDatabaseAvailable
 }: CompanyLeaderboardClientProps) {
   const [models, setModels] = useState<CompanyModelRecord[]>(initialModels);
   const [roleView, setRoleView] = useState<"BUYER" | "COMPANY" | "EVALUATOR">("BUYER");
@@ -67,6 +69,7 @@ export default function CompanyLeaderboardClient({
   }, [models]);
 
   const handleResetDemo = async () => {
+    if (!isDatabaseAvailable) return;
     setIsResetting(true);
     try {
       const res = await fetch("/api/company-models", {
@@ -133,6 +136,7 @@ export default function CompanyLeaderboardClient({
           <span className={styles.demoNote}>
             ตารางใช้งานจริงแสดงเฉพาะผลทดสอบหุ่นจริงที่รับรองตามโปรโตคอลและได้รับอนุญาตให้เผยแพร่
           </span>
+          {!isDatabaseAvailable && <span className={styles.demoBadge} role="status">โหมดอ่านอย่างเดียว: ฐานข้อมูลผลประเมินยังไม่ได้ติดตั้ง</span>}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -170,11 +174,11 @@ export default function CompanyLeaderboardClient({
             type="button"
             className={styles.secondaryBtn}
             onClick={handleResetDemo}
-            disabled={isResetting}
-            title="รีเซ็ตข้อมูลรุ่น A, B, C กลับสู่สถานะเริ่มต้นก่อนซ้อมรอบถัดไป"
+            disabled={isResetting || !isDatabaseAvailable}
+            title={isDatabaseAvailable ? "รีเซ็ตข้อมูลรุ่น A, B, C กลับสู่สถานะเริ่มต้นก่อนซ้อมรอบถัดไป" : "ต้องติดตั้งตาราง CompanyModelEvaluation ก่อนจึงจะรีเซ็ตข้อมูลได้"}
           >
             <RefreshCw size={13} />
-            {isResetting ? "กำลังรีเซ็ต…" : "รีเซ็ตสถานะเดโม (A–C)"}
+            {isResetting ? "กำลังรีเซ็ต…" : isDatabaseAvailable ? "รีเซ็ตสถานะเดโม (A–C)" : "รีเซ็ตไม่ได้ในโหมดอ่านอย่างเดียว"}
           </button>
         </div>
       </div>

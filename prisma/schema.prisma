@@ -39,8 +39,14 @@ enum ReviewStatus {
 
 enum UserRole {
   USER
-  RESEARCHER
+  COMPANY
   ADMIN
+}
+
+enum CompanyMemberRole {
+  OWNER
+  EDITOR
+  VIEWER
 }
 
 enum PullStatus {
@@ -52,13 +58,38 @@ enum PullStatus {
 }
 
 model User {
-  id              String          @id @default(cuid())
-  email           String          @unique
-  name            String?
-  role            UserRole        @default(USER)
-  submissions     SubmittedData[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  name               String?
+  role               UserRole            @default(USER)
+  submissions        SubmittedData[]
+  companyMemberships CompanyMembership[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model Company {
+  id               String                   @id @default(cuid())
+  name             String                   @unique
+  isVerified       Boolean                  @default(false)
+  members          CompanyMembership[]
+  modelEvaluations CompanyModelEvaluation[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+}
+
+model CompanyMembership {
+  id        String            @id @default(cuid())
+  userId    String
+  companyId String
+  role      CompanyMemberRole @default(EDITOR)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([companyId])
 }
 
 model SourceRecord {
@@ -354,6 +385,8 @@ model HriSimulationRun {
 
 model CompanyModelEvaluation {
   id                  String   @id @default(cuid())
+  companyId           String?
+  company             Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   modelCode           String
   version             String   @default("v1.0.0")
   groupId             String   @default("industrial-pick-place")
@@ -388,6 +421,7 @@ model CompanyModelEvaluation {
   updatedAt           DateTime @updatedAt
 
   @@unique([modelCode, version])
+  @@index([companyId])
   @@index([groupId, isPublished])
   @@index([workflowStatus])
 }

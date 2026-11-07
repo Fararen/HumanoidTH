@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ensureM02Seeded, serializeCompanyModel } from "@/lib/company-leaderboard";
+import { hasSessionRole } from "@/lib/session";
 import CompanyModelPortalClient from "./CompanyModelPortalClient";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function CompanyModelDetailPage({
 }: {
   params: Promise<{ modelId: string }>;
 }) {
+  if (!await hasSessionRole("COMPANY", "ADMIN")) redirect("/profile?from=/company/models");
   await ensureM02Seeded();
   const { modelId } = await params;
 

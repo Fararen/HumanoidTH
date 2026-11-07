@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureM02Seeded, serializeCompanyModel } from "@/lib/company-leaderboard";
+import { getSessionUser } from "@/lib/session";
 
 export async function GET(
   _request: NextRequest,
@@ -41,9 +42,26 @@ export async function PATCH(
   { params }: { params: Promise<{ modelId: string }> }
 ) {
   try {
-    await ensureM02Seeded();
     const { modelId } = await params;
     const body = await request.json();
+    const sessionUser = await getSessionUser();
+    const action = String(body.action || "UPDATE_COMPANY_DRAFT");
+
+    if (!sessionUser || !["COMPANY", "ADMIN"].includes(sessionUser.role)) {
+      return NextResponse.json({ success: false, error: "บัญชีบริษัทหรือผู้ดูแลระบบเท่านั้นที่แก้ไขคำขอประเมินได้" }, { status: 403 });
+    }
+    if (action === "EVALUATOR_DECISION" && sessionUser.role !== "ADMIN") {
+      return NextResponse.json({ success: false, error: "ผู้ดูแลระบบเท่านั้นที่บันทึกผลการประเมินได้" }, { status: 403 });
+    }
+
+    await ensureM02Seeded();
+
+    const companyMembership = sessionUser.role === "COMPANY"
+      ? await prisma.companyMembership.findFirst({ where: { userId: sessionUser.id }, include: { company: true } })
+      : null;
+    if (sessionUser.role === "COMPANY" && !companyMembership) {
+      return NextResponse.json({ success: false, error: "ไม่พบบริษัทที่เชื่อมกับบัญชีนี้" }, { status: 403 });
+    }
 
     const existing = await prisma.companyModelEvaluation.findFirst({
       where: {
@@ -57,14 +75,15 @@ export async function PATCH(
         { status: 404 }
       );
     }
-
-    const action = String(body.action || "UPDATE_COMPANY_DRAFT");
+    if (companyMembership && existing.companyId !== companyMembership.companyId) {
+      return NextResponse.json({ success: false, error: "บัญชีบริษัทแก้ไขได้เฉพาะรุ่นขององค์กรตัวเอง" }, { status: 403 });
+    }
 
     if (action === "SUBMIT_FOR_REVIEW") {
       const updated = await prisma.companyModelEvaluation.update({
         where: { id: existing.id },
         data: {
-          companyName: body.companyName ? String(body.companyName).trim() : existing.companyName,
+          companyName: companyMembership?.company.name || (body.companyName ? String(body.companyName).trim() : existing.companyName),
           contactName: body.contactName ? String(body.contactName).trim() : existing.contactName,
           contactEmail: body.contactEmail ? String(body.contactEmail).trim() : existing.contactEmail,
           contactPhone: body.contactPhone !== undefined ? String(body.contactPhone).trim() : existing.contactPhone,
@@ -90,7 +109,7 @@ export async function PATCH(
       const updated = await prisma.companyModelEvaluation.update({
         where: { id: existing.id },
         data: {
-          companyName: body.companyName ? String(body.companyName).trim() : existing.companyName,
+          companyName: companyMembership?.company.name || (body.companyName ? String(body.companyName).trim() : existing.companyName),
           contactName: body.contactName ? String(body.contactName).trim() : existing.contactName,
           contactEmail: body.contactEmail ? String(body.contactEmail).trim() : existing.contactEmail,
           contactPhone: body.contactPhone !== undefined ? String(body.contactPhone).trim() : existing.contactPhone,

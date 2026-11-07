@@ -23,15 +23,31 @@
 .authForm label { color:#34463a; display:grid; font-size:12px; font-weight:750; gap:7px; }
 .authForm input { background:#fbfcfb; border:1px solid #d9e2db; border-radius:10px; color:#20372a; font:inherit; font-size:14px; min-height:46px; outline:none; padding:0 13px; transition:border-color .15s,box-shadow .15s; }
 .authForm input:focus { border-color:#5e9a70; box-shadow:0 0 0 3px rgba(73,139,91,.13); }
+.accountTypeFieldset { border:0; margin:0; padding:0; }
+.accountTypeFieldset legend { color:#34463a; font-size:12px; font-weight:750; margin-bottom:8px; padding:0; }
+.accountTypeGrid { display:grid; gap:9px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.accountTypeCard { align-items:flex-start; background:#fbfcfb; border:1px solid #d9e2db; border-radius:11px; color:#44604d; cursor:pointer; display:grid; gap:8px; grid-template-columns:auto 1fr; min-height:76px; padding:12px; transition:border-color .15s,box-shadow .15s,background .15s; }
+.accountTypeCard input { appearance:none; border:2px solid #a8b8ac; border-radius:50%; height:16px; margin:2px 0 0; min-height:0; padding:0; width:16px; }
+.accountTypeCard input:checked { border:5px solid #2d7650; }
+.accountTypeCard svg { color:#3d7954; margin-top:1px; }
+.accountTypeCard>span { display:grid; gap:2px; }
+.accountTypeCard strong { color:#294637; font-size:12px; }
+.accountTypeCard small { color:#748379; font-size:10px; font-weight:500; line-height:1.35; }
+.accountTypeCard:has(input:focus-visible) { outline:3px solid #b8d9c1; outline-offset:2px; }
+.accountTypeCardActive { background:#f0f8f2; border-color:#79ad88; box-shadow:0 0 0 2px rgba(91,153,107,.1); }
 .optional { color:#89958d; font-size:11px; font-weight:500; }
 .primaryButton { align-items:center; background:#245c3d; border:1px solid #245c3d; border-radius:10px; color:#fff; cursor:pointer; display:inline-flex; font-size:13px; font-weight:800; gap:8px; justify-content:center; min-height:45px; padding:0 15px; text-decoration:none; transition:background .15s,transform .15s; }
 .primaryButton:hover { background:#17462d; transform:translateY(-1px); }
 .demoAccess { border-top:1px solid #e5ebe6; margin-top:22px; padding-top:17px; }
 .demoAccess summary { align-items:center; color:#6b7b70; cursor:pointer; display:flex; font-size:12px; font-weight:750; gap:7px; list-style:none; }
 .demoAccess summary::-webkit-details-marker { display:none; }
-.demoButtons { display:flex; flex-wrap:wrap; gap:8px; padding-top:12px; }
-.demoButtons button { background:#f6f8f6; border:1px solid #dce5de; border-radius:8px; color:#43564a; cursor:pointer; font-size:11px; font-weight:700; min-height:34px; padding:0 10px; }
-.demoButtons button:hover { background:#edf5ee; border-color:#bdd2c1; }
+.demoAccountGrid { display:grid; gap:8px; padding-top:12px; }
+.demoAccountGrid button { align-items:center; background:#f6f8f6; border:1px solid #dce5de; border-radius:9px; color:#43564a; cursor:pointer; display:grid; font:inherit; gap:9px; grid-template-columns:25px 1fr; min-height:48px; padding:7px 10px; text-align:left; width:100%; }
+.demoAccountGrid button:hover { background:#edf5ee; border-color:#bdd2c1; }
+.demoAccountGrid button svg { color:#467b56; }
+.demoAccountGrid button span { display:grid; gap:1px; }
+.demoAccountGrid button strong { color:#385146; font-size:11px; }
+.demoAccountGrid button small { color:#77857c; font-size:10px; font-weight:500; }
 .accountOverview { display:grid; gap:15px; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr); }
 .identityCard { align-items:center; background:linear-gradient(115deg,#173e2c,#245a3d); border-radius:18px; color:#fff; display:flex; gap:17px; min-width:0; padding:25px; }
 .avatar { align-items:center; background:#e1bd4a; border:3px solid rgba(255,255,255,.72); border-radius:50%; color:#253d2b; display:flex; flex:0 0 auto; font-size:27px; font-weight:850; height:68px; justify-content:center; width:68px; }
@@ -44,6 +60,11 @@
 .adminRole { background:#faefc7; border-color:#efdfa1; color:#735c12; }
 .logoutButton { background:transparent; border:1px solid rgba(255,255,255,.4); border-radius:9px; color:#fff; cursor:pointer; font-size:11px; font-weight:750; min-height:36px; padding:0 11px; }
 .logoutButton:hover { background:rgba(255,255,255,.1); }
+.companyWorkspace { align-items:center; background:#f0f8f2; border:1px solid #c7dfcc; border-radius:15px; display:flex; gap:13px; margin-top:15px; padding:16px 18px; }
+.companyWorkspaceIcon { align-items:center; background:#fff; border:1px solid #cee1d2; border-radius:10px; color:#3b7950; display:flex; flex:0 0 auto; height:40px; justify-content:center; width:40px; }
+.companyWorkspace>div { flex:1; min-width:0; }
+.companyWorkspace h2 { color:#284b35; font-size:16px; letter-spacing:-.02em; margin:3px 0; }
+.companyWorkspace p { color:#63806a; font-size:11px; margin:0; }
 .statsGrid { display:grid; gap:10px; grid-template-columns:repeat(3,minmax(0,1fr)); }
 .statCard { background:#fff; border:1px solid var(--profile-line); border-radius:15px; display:flex; flex-direction:column; justify-content:center; min-width:0; padding:14px; }
 .statCard>span { align-items:center; color:#647469; display:flex; font-size:10px; font-weight:750; gap:6px; white-space:nowrap; }
@@ -134,12 +155,15 @@
   .welcomeCard,.authCard { border-radius:15px; padding:22px; }
   .welcomeCard { min-height:0; }
   .welcomeIcon { margin-bottom:23px; }
+  .accountTypeGrid { grid-template-columns:1fr; }
   .accountOverview { gap:11px; }
   .identityCard { align-items:flex-start; flex-wrap:wrap; gap:12px; padding:18px; }
   .avatar { height:54px; width:54px; }
   .identityCopy { flex:1 1 calc(100% - 70px); }
   .identityCopy h2 { font-size:19px; }
   .identityCard form { margin-left:auto; }
+  .companyWorkspace { align-items:flex-start; flex-wrap:wrap; }
+  .companyWorkspace .secondaryButton { margin-left:53px; }
   .statsGrid { gap:7px; }
   .statCard { border-radius:12px; padding:10px 9px; }
   .statCard>span { font-size:9px; gap:4px; }

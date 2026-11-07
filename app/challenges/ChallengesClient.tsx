@@ -2,40 +2,73 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Challenge, KaggleCategory } from "./types";
+import { Challenge } from "./types";
+import styles from "./ChallengesClient.module.css";
+import { getTranslation, type Language } from "@/lib/translations";
 import {
   Trophy,
   Search,
-  Filter,
-  CheckCircle2,
-  Users,
-  FileCheck2,
   Calendar,
-  Sparkles,
-  ExternalLink,
+  Users,
   ChevronRight,
   ShieldCheck,
-  Award,
-  Layers,
-  ArrowUpDown,
   LayoutGrid,
   List as ListIcon,
-  Flame,
-  Plus,
-  MoreVertical
+  Plus
 } from "lucide-react";
 
 interface ChallengesClientProps {
   initialChallenges: Challenge[];
+  lang: Language;
 }
 
-export default function ChallengesClient({ initialChallenges }: ChallengesClientProps) {
+const thaiChallengeCopy: Record<string, Partial<Pick<Challenge, "shortDescription" | "category">> & { closingText?: string }> = {
+  "th-humanoid-nav-2026": {
+    shortDescription: "พัฒนาอัลกอริทึม SLAM และการหลบสิ่งกีดขวางแบบไดนามิกสำหรับหุ่นยนต์ฮิวแมนนอยด์ในสภาพแวดล้อมโรงพยาบาลที่ซับซ้อน",
+    category: "หุ่นยนต์ฮิวแมนนอยด์",
+    closingText: "เหลือเวลา 43 วัน"
+  },
+  "vision-bin-picking-2026": {
+    shortDescription: "แก้โจทย์หยิบชิ้นส่วนอุตสาหกรรมที่ซ้อนกันและสะท้อนแสง ด้วยการรับรู้ RGB-D และการประเมินท่าทางวัตถุ 6 มิติ",
+    category: "การจัดการวัตถุด้วยหุ่นยนต์",
+    closingText: "เหลือเวลา 38 วัน"
+  },
+  "diy-robot-gripper-showcase": {
+    shortDescription: "นำเสนออุปกรณ์ปลายแขนกลที่สร้างสรรค์ เข้าถึงได้ และผลิตได้ด้วยต้นทุนวัสดุรวมไม่เกิน 100 ดอลลาร์สหรัฐ",
+    category: "การออกแบบฮาร์ดแวร์",
+    closingText: "เหลือเวลา 53 วัน"
+  },
+  "mini-walking-gait-sim": {
+    shortDescription: "ฝึกนโยบาย reinforcement learning เพื่อควบคุมความมั่นคงของหุ่นยนต์สองขาบนพื้นผิวไม่เรียบใน MuJoCo",
+    category: "ปัญญาประดิษฐ์สำหรับหุ่นยนต์",
+    closingText: "สิ้นสุดแล้ว"
+  }
+};
+
+function localizeChallenge(challenge: Challenge, lang: Language) {
+  if (lang !== "th") return challenge;
+  const copy = thaiChallengeCopy[challenge.id];
+  if (!copy) return challenge;
+  return {
+    ...challenge,
+    shortDescription: copy.shortDescription ?? challenge.shortDescription,
+    category: copy.category ?? challenge.category,
+    schedule: { ...challenge.schedule, closingText: copy.closingText ?? challenge.schedule.closingText }
+  };
+}
+
+export default function ChallengesClient({ initialChallenges, lang }: ChallengesClientProps) {
+  const t = getTranslation(lang);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "COMPLETED">("ALL");
+  const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "COMPLETED">("ACTIVE");
   const [selectedKaggleCategory, setSelectedKaggleCategory] = useState<string>("ALL");
   const [selectedTag, setSelectedTag] = useState<string>("ALL");
   const [sortBy, setSortBy] = useState<"HOTNESS" | "PRIZE" | "TEAMS" | "CLOSING_SOON">("HOTNESS");
   const [viewMode, setViewMode] = useState<"LIST" | "GRID">("GRID");
+  const [showAllTags, setShowAllTags] = useState(false);
+
+  const activeCount = initialChallenges.filter((challenge) => challenge.status === "ACTIVE").length;
+  const completedCount = initialChallenges.filter((challenge) => challenge.status === "COMPLETED").length;
 
   // All unique tags
   const allTags = useMemo(() => {
@@ -48,6 +81,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
   const featuredChallenge = useMemo(() => {
     return initialChallenges.find((c) => c.kaggleCategory === "Featured") || initialChallenges[0];
   }, [initialChallenges]);
+  const localizedFeatured = featuredChallenge ? localizeChallenge(featuredChallenge, lang) : undefined;
 
   // Filtering & Sorting
   const filteredChallenges = useMemo(() => {
@@ -90,7 +124,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
   }, [initialChallenges, search, activeTab, selectedKaggleCategory, selectedTag, sortBy]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className={styles.page}>
       <style>{`
         .kaggle-card {
           transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease !important;
@@ -106,6 +140,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
       `}</style>
       {/* 1. Refined Page Header */}
       <div
+        className={styles.pageHeader}
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -127,7 +162,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 lineHeight: 1.15
               }}
             >
-              Competitions
+              {t.competitionsTitle}
             </h1>
             <span
               style={{
@@ -136,7 +171,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 color: "var(--text-secondary)"
               }}
             >
-              {initialChallenges.length} Active Challenges
+              {activeCount} {t.competitionsOpen} · {initialChallenges.length} {t.competitionsTotal}
             </span>
           </div>
           <p
@@ -148,12 +183,12 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               maxWidth: 620
             }}
           >
-            Benchmark autonomous control algorithms, solve humanoid robotics challenges, and compete for community prize pools.
+            {t.competitionsLead}
           </p>
         </div>
 
-        <button
-          type="button"
+        <Link
+          href="/challenges/host"
           style={{
             height: 38,
             padding: "0 18px",
@@ -170,15 +205,15 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
             boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             transition: "all 140ms ease"
           }}
-          onClick={() => alert("Host Competition: Submit official organizer credentials to publish an authorized robotics challenge.")}
         >
-          <Plus size={16} /> Host a Competition
-        </button>
+          <Plus size={16} /> {t.hostCompetition}
+        </Link>
       </div>
 
       {/* 2. Editorial Spotlight Hero Banner (No nested cards, no kickers) */}
-      {featuredChallenge && (
+      {localizedFeatured && (
         <div
+          className={`${styles.hero} kaggle-card`}
           style={{
             position: "relative",
             background: `linear-gradient(90deg, rgba(13, 38, 29, 0.98) 0%, rgba(15, 45, 34, 0.94) 52%, rgba(15, 45, 34, 0.72) 100%), url('https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80') center right / cover no-repeat`,
@@ -196,6 +231,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
         >
           {/* Left Column: Heading, description, metadata */}
           <div>
+            <span className={styles.heroEyebrow}>{t.featured} · {localizedFeatured.mode.replace(/_/g, " ")}</span>
             <h2
               style={{
                 fontSize: 26,
@@ -206,8 +242,8 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 letterSpacing: "-0.02em"
               }}
             >
-              <Link href={`/challenges/${featuredChallenge.id}`} style={{ color: "#ffffff", textDecoration: "none" }}>
-                {featuredChallenge.title}
+              <Link href={`/challenges/${localizedFeatured.id}`} style={{ color: "#ffffff", textDecoration: "none" }}>
+                {localizedFeatured.title}
               </Link>
             </h2>
 
@@ -220,7 +256,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 maxWidth: 600
               }}
             >
-              {featuredChallenge.shortDescription}
+              {localizedFeatured.shortDescription}
             </p>
 
             <div
@@ -233,16 +269,17 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 color: "rgba(255, 255, 255, 0.8)"
               }}
             >
-              <span>Hosted by <strong style={{ color: "#ffffff" }}>{featuredChallenge.organizer.name}</strong></span>
-              <span>โ€ข</span>
-              <span style={{ color: "#fde047", fontWeight: 700 }}>{featuredChallenge.schedule.closingText}</span>
-              <span>โ€ข</span>
-              <span>{featuredChallenge.category}</span>
+              <span>{t.hostedBy} <strong style={{ color: "#ffffff" }}>{localizedFeatured.organizer.name}</strong></span>
+              <span aria-hidden="true">·</span>
+              <span style={{ color: "#fde047", fontWeight: 700 }}>{localizedFeatured.schedule.closingText}</span>
+              <span aria-hidden="true">·</span>
+              <span>{localizedFeatured.category}</span>
             </div>
           </div>
 
           {/* Right Column: Un-nested typographic metric & clear CTA */}
           <div
+            className={styles.heroMetric}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -262,7 +299,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 color: "rgba(255, 255, 255, 0.68)"
               }}
             >
-              Total Prize Pool
+              {t.totalPrizePool}
             </span>
 
             <div
@@ -273,7 +310,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 lineHeight: 1.15
               }}
             >
-              {featuredChallenge.prizeDisplay}
+              {localizedFeatured.prizeDisplay}
             </div>
 
             <div
@@ -283,11 +320,11 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 marginBottom: 12
               }}
             >
-              {featuredChallenge.participantsCount} teams participating
+              {localizedFeatured.participantsCount} {t.teamsParticipating}
             </div>
 
             <Link
-              href={`/challenges/${featuredChallenge.id}`}
+              href={`/challenges/${localizedFeatured.id}`}
               style={{
                 height: 42,
                 padding: "0 22px",
@@ -306,7 +343,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 transition: "transform 140ms ease, box-shadow 140ms ease"
               }}
             >
-              Enter Competition <ChevronRight size={16} />
+              {t.enterCompetition} <ChevronRight size={16} />
             </Link>
           </div>
         </div>
@@ -314,6 +351,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
 
       {/* 3. Refined Tab Bar: All, Active, Completed & View Toggles */}
       <div
+        className={styles.tabsBar}
         style={{
           display: "flex",
           alignItems: "center",
@@ -326,9 +364,9 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
       >
         <div style={{ display: "flex", gap: 6 }}>
           {[
-            { id: "ALL", label: "All Competitions" },
-            { id: "ACTIVE", label: "Active" },
-            { id: "COMPLETED", label: "Completed" }
+            { id: "ALL", label: `${t.allCompetitions} (${initialChallenges.length})` },
+            { id: "ACTIVE", label: `${t.openNow} (${activeCount})` },
+            { id: "COMPLETED", label: `${t.completed} (${completedCount})` }
           ].map((tab) => {
             const isSelected = activeTab === tab.id;
             return (
@@ -336,6 +374,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
+                aria-pressed={isSelected}
                 style={{
                   padding: "10px 18px",
                   fontSize: 13.5,
@@ -356,13 +395,14 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
         </div>
 
         {/* View Switcher: List vs Grid with High Contrast */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 6 }}>
+        <div className={styles.viewSwitch}>
           <button
             type="button"
             onClick={() => setViewMode("LIST")}
+            aria-pressed={viewMode === "LIST"}
+            className={viewMode === "LIST" ? styles.viewSwitchActive : styles.viewSwitchButton}
             style={{
-              height: 32,
-              width: 32,
+              height: 36,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -373,16 +413,16 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               cursor: "pointer",
               transition: "all 120ms ease"
             }}
-            title="Compact Row View"
           >
-            <ListIcon size={16} />
+            <ListIcon size={15} aria-hidden="true" /> <span>{t.listView}</span>
           </button>
           <button
             type="button"
             onClick={() => setViewMode("GRID")}
+            aria-pressed={viewMode === "GRID"}
+            className={viewMode === "GRID" ? styles.viewSwitchActive : styles.viewSwitchButton}
             style={{
-              height: 32,
-              width: 32,
+              height: 36,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -393,15 +433,15 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               cursor: "pointer",
               transition: "all 120ms ease"
             }}
-            title="Card Grid View"
           >
-            <LayoutGrid size={16} />
+            <LayoutGrid size={15} aria-hidden="true" /> <span>{t.cardView}</span>
           </button>
         </div>
       </div>
 
       {/* 4. Kaggle-Style Filter Controls Bar */}
       <div
+        className={styles.filters}
         style={{
           display: "flex",
           flexWrap: "wrap",
@@ -421,7 +461,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search competitions..."
+              placeholder={t.searchCompetitions}
               style={{
                 width: "100%",
                 paddingLeft: 36,
@@ -447,16 +487,16 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
               padding: "0 12px"
             }}
           >
-            <option value="ALL">All Categories</option>
-            <option value="Featured">Featured</option>
-            <option value="Research">Research</option>
-            <option value="Community">Community</option>
-            <option value="Getting Started">Getting Started</option>
+            <option value="ALL">{t.allCategories}</option>
+            <option value="Featured">{t.featuredCategory}</option>
+            <option value="Research">{t.researchCategory}</option>
+            <option value="Community">{t.communityCategory}</option>
+            <option value="Getting Started">{t.gettingStartedCategory}</option>
           </select>
 
           {/* Sort By Dropdown */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>Sort by:</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>{t.sortBy}</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
@@ -469,27 +509,28 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 padding: "0 10px"
               }}
             >
-              <option value="HOTNESS">Hotness</option>
-              <option value="PRIZE">Prize Amount</option>
-              <option value="TEAMS">Most Teams</option>
-              <option value="CLOSING_SOON">Closing Soon</option>
+              <option value="HOTNESS">{t.hotness}</option>
+              <option value="PRIZE">{t.prizeAmount}</option>
+              <option value="TEAMS">{t.mostTeams}</option>
+              <option value="CLOSING_SOON">{t.closingSoon}</option>
             </select>
           </div>
         </div>
 
-        <div style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>
-          {filteredChallenges.length} competitions
+        <div aria-live="polite" style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+          {filteredChallenges.length} {t.competitionsCount}
         </div>
       </div>
 
       {/* Quick Tag Pills */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      <div className={styles.tagBar}>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-          Tags:
+          {t.tags}
         </span>
         <button
           type="button"
           onClick={() => setSelectedTag("ALL")}
+          aria-pressed={selectedTag === "ALL"}
           style={{
             padding: "3px 10px",
             fontSize: 11.5,
@@ -501,13 +542,14 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
             cursor: "pointer"
           }}
         >
-          All
+          {t.allCompetitions}
         </button>
-        {allTags.map((t) => (
+        {allTags.slice(0, showAllTags ? allTags.length : 8).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setSelectedTag(selectedTag === t ? "ALL" : t)}
+            aria-pressed={selectedTag === t}
             style={{
               padding: "3px 10px",
               fontSize: 11.5,
@@ -522,6 +564,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
             {t}
           </button>
         ))}
+        {allTags.length > 8 && <button type="button" className={styles.moreTags} onClick={() => setShowAllTags((value) => !value)}>{showAllTags ? t.showLess : `+${allTags.length - 8} ${t.more}`}</button>}
       </div>
 
       {/* 5. Kaggle-Style High-Density List View (Default) */}
@@ -539,6 +582,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
           {filteredChallenges.map((item, idx) => {
             const isOfficial = item.type === "OFFICIAL";
             const isLast = idx === filteredChallenges.length - 1;
+            const localizedItem = localizeChallenge(item, lang);
 
             return (
               <div
@@ -552,7 +596,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                   borderBottom: isLast ? "none" : "1px solid rgba(74, 124, 89, 0.1)",
                   transition: "background 140ms ease"
                 }}
-                className="kaggle-row"
+                className={`${styles.listRow} kaggle-row`}
               >
                 {/* Left Thumbnail Emoji Avatar */}
                 <div
@@ -585,7 +629,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                         lineHeight: 1.3
                       }}
                     >
-                      {item.title}
+                      {localizedItem.title}
                     </Link>
                     {isOfficial ? (
                       <span
@@ -601,7 +645,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                           gap: 3
                         }}
                       >
-                        <ShieldCheck size={12} /> Official
+                        <ShieldCheck size={12} /> {t.official}
                       </span>
                     ) : (
                       <span
@@ -614,7 +658,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                           color: "#475569"
                         }}
                       >
-                        Community
+                        {t.community}
                       </span>
                     )}
                   </div>
@@ -630,14 +674,14 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                       maxWidth: "90%"
                     }}
                   >
-                    {item.shortDescription}
+                    {localizedItem.shortDescription}
                   </p>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11.5, color: "var(--text-secondary)", flexWrap: "wrap", marginTop: 2 }}>
-                    <span>Hosted by <strong style={{ color: "var(--text-primary)" }}>{item.organizer.name}</strong></span>
-                    <span>โ€ข</span>
-                    <span>{item.category}</span>
-                    <span>โ€ข</span>
+                    <span>{t.hostedBy} <strong style={{ color: "var(--text-primary)" }}>{localizedItem.organizer.name}</strong></span>
+                    <span aria-hidden="true">·</span>
+                    <span>{localizedItem.category}</span>
+                    <span aria-hidden="true">·</span>
                     <div style={{ display: "flex", gap: 4 }}>
                       {item.tags.slice(0, 3).map((t) => (
                         <span key={t} style={{ color: "#19523c", fontWeight: 600 }}>
@@ -655,16 +699,16 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                       {item.prizeDisplay}
                     </div>
                     <div style={{ fontSize: 11.5, color: "var(--text-secondary)", marginTop: 2 }}>
-                      {item.participantsCount} teams
+                      {item.participantsCount} {t.teams}
                     </div>
                   </div>
 
                   <div style={{ minWidth: 90 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: item.status === "ACTIVE" ? "#19523c" : "#64748b" }}>
-                      {item.schedule.closingText}
+                      {localizedItem.schedule.closingText}
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
-                      {item.submissionsCount} entries
+                      {item.submissionsCount} {t.entries}
                     </div>
                   </div>
 
@@ -684,7 +728,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                       gap: 4
                     }}
                   >
-                    View <ChevronRight size={14} />
+                    {t.view} <ChevronRight size={14} />
                   </Link>
                 </div>
               </div>
@@ -693,7 +737,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
 
           {!filteredChallenges.length && (
             <div style={{ padding: 48, textAlign: "center", color: "var(--text-secondary)" }}>
-              No competitions found matching your filter criteria.
+              {t.noCompetitions}
             </div>
           )}
         </div>
@@ -702,14 +746,16 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
       {/* 6. Grid View (Kaggle Style Cards) */}
       {viewMode === "GRID" && (
         <div
+          className={styles.grid}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
             gap: 20
           }}
         >
-          {filteredChallenges.map((item) => (
-            <div
+          {filteredChallenges.map((item) => {
+            const localizedItem = localizeChallenge(item, lang);
+            return <div
               key={item.id}
               className="kaggle-card"
               style={{
@@ -736,7 +782,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                 {item.thumbnailUrl && (
                   <img
                     src={item.thumbnailUrl}
-                    alt={item.title}
+                    alt={localizedItem.title}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -769,10 +815,10 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                   }}
                 >
                   <Trophy size={13} style={{ color: "#71717a" }} />
-                  <span>Competition</span>
+                  <span>{t.competition}</span>
                 </div>
 
-                {/* Title & More Menu */}
+                  {/* Title */}
                 <div
                   style={{
                     display: "flex",
@@ -795,29 +841,10 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                       overflow: "hidden",
                       minHeight: 40
                     }}
-                    title={item.title}
+                    title={localizedItem.title}
                   >
-                    {item.title}
+                    {localizedItem.title}
                   </Link>
-                  <button
-                    type="button"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 2,
-                      cursor: "pointer",
-                      color: "var(--text-secondary, #94a3b8)",
-                      display: "flex",
-                      alignItems: "center"
-                    }}
-                    aria-label="More options"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <MoreVertical size={16} />
-                  </button>
                 </div>
 
                 {/* Short Description */}
@@ -830,20 +857,14 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap"
                   }}
-                  title={item.shortDescription}
+                  title={localizedItem.shortDescription}
                 >
-                  {item.shortDescription}
+                  {localizedItem.shortDescription}
                 </p>
 
-                {/* Team Count */}
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: "var(--text-secondary, #64748b)",
-                    marginTop: 2
-                  }}
-                >
-                  {item.participantsCount} Teams
+                <div className={styles.cardMeta}>
+                  <span><Users size={14} aria-hidden="true" /> {item.participantsCount} {t.teams}</span>
+                  <span><Calendar size={14} aria-hidden="true" /> {localizedItem.schedule.closingText}</span>
                 </div>
 
                 {/* Footer: Category & Status */}
@@ -864,9 +885,7 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                       color: "var(--text-primary, #334155)"
                     }}
                   >
-                    {item.kaggleCategory === "Getting Started"
-                      ? "Knowledge"
-                      : item.kaggleCategory}
+                    {item.prizeDisplay}
                   </span>
                   <span
                     style={{
@@ -875,19 +894,19 @@ export default function ChallengesClient({ initialChallenges }: ChallengesClient
                     }}
                   >
                     {item.status === "ACTIVE"
-                      ? "Ongoing"
+                      ? t.ongoing
                       : item.status === "COMPLETED"
-                      ? "Completed"
-                      : "Upcoming"}
+                      ? t.completed
+                      : t.upcoming}
                   </span>
                 </div>
               </div>
-            </div>
-          ))}
+            </div>;
+          })}
 
           {!filteredChallenges.length && (
             <div style={{ gridColumn: "1 / -1", padding: 48, textAlign: "center", color: "var(--text-secondary)" }}>
-              No competitions found matching your filter criteria.
+              {t.noCompetitions}
             </div>
           )}
         </div>

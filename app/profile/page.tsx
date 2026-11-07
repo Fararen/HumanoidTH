@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { loginAsUser, logoutUser, registerAndLoginUser } from "@/app/actions";
+import { loginAsUser, logoutUser } from "@/app/actions";
 import { getTranslation } from "@/lib/translations";
-import { ArrowRight, Award, BadgeCheck, Bot, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
+import { ArrowRight, Award, BadgeCheck, Bot, Building2, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
 import styles from "./Profile.module.css";
+import RegisterAccountForm from "./RegisterAccountForm";
 
 export const dynamic = "force-dynamic";
 
@@ -38,16 +39,16 @@ export default async function ProfilePage() {
   const t = getTranslation(lang);
 
   let users: Array<{ id: string; name: string | null; email: string; role: string; createdAt: Date }> = [];
-  let currentUser: { name: string | null; email: string; createdAt: Date; submissions: Array<{ id: string; title: string; url: string | null; submissionType: string; status: string; reviewNotes: string | null; notes: string | null; createdAt: Date }> } | null = null;
+  let currentUser: { name: string | null; email: string; role: string; createdAt: Date; submissions: Array<{ id: string; title: string; url: string | null; submissionType: string; status: string; reviewNotes: string | null; notes: string | null; createdAt: Date }>; companyMemberships: Array<{ role: string; company: { name: string; isVerified: boolean } }> } | null = null;
   let databaseOffline = false;
 
   try {
     const [userList, account] = await Promise.all([
       currentRole === "ADMIN" ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 20, select: { id: true, name: true, email: true, role: true, createdAt: true } }) : Promise.resolve([]),
-      currentEmail ? prisma.user.findUnique({ where: { email: currentEmail }, include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 } } }) : Promise.resolve(null)
+      currentEmail ? prisma.user.findUnique({ where: { email: currentEmail }, include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 }, companyMemberships: { include: { company: true }, take: 1 } } }) : Promise.resolve(null)
     ]);
     users = userList;
-    currentUser = account ? { name: account.name, email: account.email, createdAt: account.createdAt, submissions: account.submissions } : null;
+    currentUser = account ? { name: account.name, email: account.email, role: account.role, createdAt: account.createdAt, submissions: account.submissions, companyMemberships: account.companyMemberships } : null;
   } catch (error) {
     console.error("Failed to query profile data:", error);
     databaseOffline = true;
@@ -58,6 +59,8 @@ export default async function ProfilePage() {
   const approvedShowcase = submissions.filter((item) => item.status === "APPROVED").slice(0, 3);
   const inReview = submissions.filter((item) => reviewStatuses.includes(item.status)).length;
   const displayName = currentUser?.name || currentUser?.email.split("@")[0] || "Atlas member";
+  const activeRole = currentUser?.role || currentRole;
+  const companyMembership = currentUser?.companyMemberships[0];
   const showcaseCopy = lang === "th" ? {
     eyebrow: "ผลงานใน ATLAS",
     title: "Contribution showcase",
@@ -98,22 +101,18 @@ export default async function ProfilePage() {
 
       <section className={styles.authCard}>
         <div className={styles.cardHeading}><span className={styles.kicker}>WELCOME</span><h2>Sign in or create an account</h2><p>Use an email address you can access.</p></div>
-        <form action={registerAndLoginUser} className={styles.authForm}>
-          <label>Email address<input name="email" type="email" required placeholder="you@example.com" autoComplete="email" /></label>
-          <label>Name <span className={styles.optional}>(optional)</span><input name="name" placeholder="Your name" autoComplete="name" /></label>
-          <input type="hidden" name="role" value="USER" />
-          <button type="submit" className={styles.primaryButton}>Continue with email <ArrowRight size={16} aria-hidden="true" /></button>
-        </form>
-        <details className={styles.demoAccess}><summary><CircleHelp size={15} aria-hidden="true" />Demo access</summary><div className={styles.demoButtons}>
-          <form action={loginAsUser.bind(null, "creativelab.co.th@gmail.com", "ADMIN")}><button type="submit">Administrator demo</button></form>
-          <form action={loginAsUser.bind(null, "researcher@example.com", "RESEARCHER")}><button type="submit">Researcher demo</button></form>
-        </div></details>
+        <RegisterAccountForm />
+        {process.env.NODE_ENV !== "production" && <details className={styles.demoAccess}><summary><CircleHelp size={15} aria-hidden="true" />Try a mock account</summary><div className={styles.demoAccountGrid}>
+          <form action={loginAsUser.bind(null, "member.demo@humanoidth.local", "USER", undefined)}><button type="submit"><UserRound size={16} aria-hidden="true" /><span><strong>Individual</strong><small>Learn, simulate, and compete</small></span></button></form>
+          <form action={loginAsUser.bind(null, "company.demo@humanoidth.local", "COMPANY", "Eastern Automation Lab (อีสเทิร์น ออโตเมชัน)")}><button type="submit"><Building2 size={16} aria-hidden="true" /><span><strong>Company</strong><small>Submit models and view evaluations</small></span></button></form>
+          <form action={loginAsUser.bind(null, "admin.demo@humanoidth.local", "ADMIN", undefined)}><button type="submit"><ShieldCheck size={16} aria-hidden="true" /><span><strong>Administrator</strong><small>Review accounts and operations</small></span></button></form>
+        </div></details>}
       </section>
     </div> : <>
       <section className={styles.accountOverview}>
         <div className={styles.identityCard}>
           <div className={styles.avatar}>{displayName.slice(0, 1).toUpperCase()}</div>
-          <div className={styles.identityCopy}><span className={styles.kicker}>SIGNED IN</span><h2>{displayName}</h2><p>{currentEmail}</p><span className={`${styles.roleBadge} ${currentRole === "ADMIN" ? styles.adminRole : ""}`}><ShieldCheck size={13} aria-hidden="true" />{currentRole}</span></div>
+          <div className={styles.identityCopy}><span className={styles.kicker}>SIGNED IN</span><h2>{displayName}</h2><p>{currentEmail}</p><span className={`${styles.roleBadge} ${activeRole === "ADMIN" ? styles.adminRole : ""}`}><ShieldCheck size={13} aria-hidden="true" />{activeRole}</span></div>
           <form action={logoutUser}><button type="submit" className={styles.logoutButton}>Sign out</button></form>
         </div>
         <div className={styles.statsGrid} aria-label="Contribution summary">
@@ -122,6 +121,12 @@ export default async function ProfilePage() {
           <article className={styles.statCard}><span><Clock3 size={16} aria-hidden="true" />In review</span><strong>{inReview}</strong><small>awaiting review</small></article>
         </div>
       </section>
+
+      {activeRole === "COMPANY" && <section className={styles.companyWorkspace}>
+        <span className={styles.companyWorkspaceIcon}><Building2 size={20} aria-hidden="true" /></span>
+        <div><span className={styles.kicker}>COMPANY WORKSPACE</span><h2>{companyMembership?.company.name || "Company account"}</h2><p>{companyMembership?.company.isVerified ? "Verified organization" : "Company profile awaiting verification"} · {companyMembership?.role || "OWNER"}</p></div>
+        <Link className={styles.secondaryButton} href="/company/models/new">Open Company Portal <ArrowRight size={14} aria-hidden="true" /></Link>
+      </section>}
 
       <section className={styles.showcaseSection} aria-labelledby="profile-showcase-title">
         <header className={styles.showcaseHeading}>
@@ -160,7 +165,7 @@ export default async function ProfilePage() {
       </section>
     </>}
 
-    {currentRole === "ADMIN" && <section className={styles.adminSection}>
+    {activeRole === "ADMIN" && <section className={styles.adminSection}>
       <header className={styles.sectionHeading}><div><span className={styles.kicker}>ADMINISTRATION</span><h2>Atlas accounts</h2><p>Recently registered accounts in this workspace.</p></div><span className={styles.userCount}>{users.length} accounts</span></header>
       <div className={styles.userList}>{users.map((user) => <article className={styles.userRow} key={user.id}><span className={styles.userAvatar}>{(user.name || user.email).slice(0, 1).toUpperCase()}</span><span><strong>{user.name || "Unnamed member"}</strong><small>{user.email}</small></span><span className={styles.roleBadge}>{user.role}</span><time>{user.createdAt.toLocaleDateString(lang === "th" ? "th-TH" : "en", { day: "numeric", month: "short", year: "numeric" })}</time></article>)}{!users.length && <p className={styles.emptyUsers}>No accounts found.</p>}</div>
     </section>}
