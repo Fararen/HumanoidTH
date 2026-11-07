@@ -282,42 +282,17 @@ export async function loginAsUser(email: string, role: string, companyName?: str
   }
 
   const accountRole = role === "ADMIN" ? "ADMIN" : role === "COMPANY" ? "COMPANY" : "USER";
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { role: accountRole },
-    create: {
-      email,
-      name: email.split("@")[0],
-      role: accountRole
-    }
-  }).catch((error) => {
-    console.error("Demo account login failed:", error);
-    redirect("/profile?accountError=database");
-  });
-
-  if (accountRole === "COMPANY" && companyName) {
-    const company = await prisma.company.upsert({
-      where: { name: companyName },
-      update: {},
-      create: { name: companyName }
-    }).catch((error) => {
-      console.error("Demo company setup failed:", error);
-      redirect("/profile?accountError=database");
-    });
-    await prisma.companyMembership.upsert({
-      where: { userId_companyId: { userId: user.id, companyId: company.id } },
-      update: {},
-      create: { userId: user.id, companyId: company.id, role: "OWNER" }
-    }).catch((error) => {
-      console.error("Demo company membership setup failed:", error);
-      redirect("/profile?accountError=database");
-    });
-  }
-
   const cookieStore = await cookies();
-  cookieStore.set("user_email", user.email, { path: "/" });
-  cookieStore.set("user_role", user.role, { path: "/" });
-  if (user.role === "ADMIN") {
+  cookieStore.set("user_email", email, { path: "/" });
+  cookieStore.set("user_role", accountRole, { path: "/" });
+  cookieStore.set("demo_account", accountRole, { path: "/" });
+  cookieStore.delete("demo_subscription");
+  if (accountRole === "COMPANY" && companyName) {
+    cookieStore.set("demo_company_name", companyName, { path: "/" });
+  } else {
+    cookieStore.delete("demo_company_name");
+  }
+  if (accountRole === "ADMIN") {
     cookieStore.set("admin_session", "true", { path: "/" });
   } else {
     cookieStore.delete("admin_session");
@@ -325,6 +300,22 @@ export async function loginAsUser(email: string, role: string, companyName?: str
   revalidatePath("/profile");
   revalidateAtlasCms();
   redirect("/profile");
+}
+
+export async function loginAsSubscriber() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo subscriptions are disabled in production.");
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set("user_email", "subscriber.demo@humanoidth.local", { path: "/" });
+  cookieStore.set("user_role", "USER", { path: "/" });
+  cookieStore.set("demo_account", "USER", { path: "/" });
+  cookieStore.set("demo_subscription", "ACTIVE", { path: "/" });
+  cookieStore.delete("demo_company_name");
+  cookieStore.delete("admin_session");
+  revalidatePath("/profile");
+  redirect("/dashboard");
 }
 
 export async function registerAndLoginUser(formData: FormData) {
@@ -372,6 +363,9 @@ export async function registerAndLoginUser(formData: FormData) {
   });
 
   const cookieStore = await cookies();
+  cookieStore.delete("demo_account");
+  cookieStore.delete("demo_company_name");
+  cookieStore.delete("demo_subscription");
   cookieStore.set("user_email", user.email, { path: "/" });
   cookieStore.set("user_role", user.role, { path: "/" });
   if (user.role === "ADMIN") {
@@ -389,6 +383,9 @@ export async function logoutUser() {
   cookieStore.delete("user_email");
   cookieStore.delete("user_role");
   cookieStore.delete("admin_session");
+  cookieStore.delete("demo_account");
+  cookieStore.delete("demo_company_name");
+  cookieStore.delete("demo_subscription");
   revalidatePath("/profile");
   revalidateAtlasCms();
   redirect("/profile");

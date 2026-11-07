@@ -99,6 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
   const currentRole = cookieStore.get("user_role")?.value;
+  const currentEmail = cookieStore.get("user_email")?.value;
   const siteUrl = getSiteUrl();
   const structuredData = {
     "@context": "https://schema.org",
@@ -138,10 +139,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <FirstTimeLoader />
         <div className="app-shell">
           <MobileHeader currentLang={lang} />
-          <TopNav currentLang={lang} currentRole={currentRole} />
+          <TopNav currentLang={lang} currentRole={currentRole} currentEmail={currentEmail} />
           <main className="main motion-page">{children}</main>
           {cookieStore.get("user_role")?.value === "ADMIN" && <DataPullFab />}
-          <MobileTabNav currentLang={lang} />
+          <MobileTabNav currentLang={lang} currentEmail={currentEmail} />
         </div>
       </body>
     </html>

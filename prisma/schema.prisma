@@ -57,6 +57,13 @@ enum PullStatus {
   SKIPPED_MISSING_KEY
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  EXPIRED
+}
+
 model User {
   id                 String              @id @default(cuid())
   email              String              @unique
@@ -64,8 +71,25 @@ model User {
   role               UserRole            @default(USER)
   submissions        SubmittedData[]
   companyMemberships CompanyMembership[]
+  subscriptions      Subscription[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  plan                 String             @default("ATLAS_DASHBOARD")
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime?
+  provider             String?
+  providerReference    String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@unique([provider, providerReference])
 }
 
 model Company {

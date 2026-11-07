@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { loginAsUser, logoutUser } from "@/app/actions";
+import { loginAsSubscriber, loginAsUser, logoutUser } from "@/app/actions";
 import { getTranslation } from "@/lib/translations";
-import { ArrowRight, Award, BadgeCheck, Bot, Building2, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
+import { ArrowRight, Award, BadgeCheck, BarChart3, Bot, Building2, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
 import styles from "./Profile.module.css";
 import RegisterAccountForm from "./RegisterAccountForm";
 
@@ -40,6 +40,9 @@ export default async function ProfilePage({
   const cookieStore = await cookies();
   const currentEmail = cookieStore.get("user_email")?.value;
   const currentRole = cookieStore.get("user_role")?.value || "USER";
+  const demoRole = cookieStore.get("demo_account")?.value;
+  const isDemoAccount = process.env.NODE_ENV !== "production" &&
+    Boolean(currentEmail) && ["USER", "COMPANY", "ADMIN"].includes(demoRole || "") && demoRole === currentRole;
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
   const accountErrorMessage = lang === "th"
@@ -51,12 +54,26 @@ export default async function ProfilePage({
   let databaseOffline = false;
 
   try {
-    const [userList, account] = await Promise.all([
-      currentRole === "ADMIN" ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 20, select: { id: true, name: true, email: true, role: true, createdAt: true } }) : Promise.resolve([]),
-      currentEmail ? prisma.user.findUnique({ where: { email: currentEmail }, include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 }, companyMemberships: { include: { company: true }, take: 1 } } }) : Promise.resolve(null)
-    ]);
-    users = userList;
-    currentUser = account ? { name: account.name, email: account.email, role: account.role, createdAt: account.createdAt, submissions: account.submissions, companyMemberships: account.companyMemberships } : null;
+    if (isDemoAccount && currentEmail) {
+      const companyName = cookieStore.get("demo_company_name")?.value;
+      currentUser = {
+        name: currentEmail.split("@")[0],
+        email: currentEmail,
+        role: demoRole!,
+        createdAt: new Date(),
+        submissions: [],
+        companyMemberships: demoRole === "COMPANY" && companyName
+          ? [{ role: "OWNER", company: { name: companyName, isVerified: false } }]
+          : []
+      };
+    } else {
+      const [userList, account] = await Promise.all([
+        currentRole === "ADMIN" ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 20, select: { id: true, name: true, email: true, role: true, createdAt: true } }) : Promise.resolve([]),
+        currentEmail ? prisma.user.findUnique({ where: { email: currentEmail }, include: { submissions: { orderBy: { createdAt: "desc" }, take: 50 }, companyMemberships: { include: { company: true }, take: 1 } } }) : Promise.resolve(null)
+      ]);
+      users = userList;
+      currentUser = account ? { name: account.name, email: account.email, role: account.role, createdAt: account.createdAt, submissions: account.submissions, companyMemberships: account.companyMemberships } : null;
+    }
   } catch (error) {
     console.error("Failed to query profile data:", error);
     databaseOffline = true;
@@ -74,7 +91,7 @@ export default async function ProfilePage({
     workspaceKicker: "พื้นที่ทำงานของคุณใน ATLAS", welcomeTitle: "เก็บผลงานของคุณไว้ในที่เดียว", welcomeLead: "เข้าสู่ระบบด้วยอีเมลเพื่อติดตามรายการที่ส่ง สถานะการตรวจสอบ และสร้างประวัติผลงานสาธารณะของคุณ",
     trackStatus: "ติดตามสถานะรายการ", keepEvidence: "เก็บหลักฐานของคุณ", connectCommunity: "เชื่อมต่องานของคุณกับชุมชน", simpleAccount: "บัญชีเรียบง่ายสำหรับมีส่วนร่วมใน Atlas สาธารณะ",
     welcome: "ยินดีต้อนรับ", signInTitle: "เข้าสู่ระบบหรือสร้างบัญชี", signInLead: "ใช้อีเมลที่คุณเข้าถึงได้", tryMock: "ลองใช้บัญชีตัวอย่าง",
-    individual: "บุคคล", individualDemo: "เรียน ใช้ simulator และแข่งขัน", company: "บริษัท", companyDemo: "ส่งรุ่นหุ่นยนต์และดูผลประเมิน", admin: "ผู้ดูแลระบบ", adminDemo: "ตรวจสอบบัญชีและงานปฏิบัติการ",
+    individual: "บุคคล", individualDemo: "เรียน ใช้ simulator และแข่งขัน", company: "บริษัท", companyDemo: "ส่งรุ่นหุ่นยนต์และดูผลประเมิน", admin: "ผู้ดูแลระบบ", adminDemo: "ตรวจสอบบัญชีและงานปฏิบัติการ", subscriber: "สมาชิก Dashboard", subscriberDemo: "ทดลอง subscription และเข้าหน้า Dashboard",
     signedIn: "เข้าสู่ระบบแล้ว", signOut: "ออกจากระบบ", contributionSummary: "สรุปผลงาน", submitted: "ส่งแล้ว", recordsShared: "รายการที่แชร์", approved: "อนุมัติแล้ว", accepted: "ได้รับเข้าระบบ Atlas", inReview: "กำลังตรวจสอบ", awaitingReview: "รอการตรวจสอบ",
     companyWorkspace: "พื้นที่ทำงานบริษัท", companyAccount: "บัญชีบริษัท", verified: "องค์กรยืนยันแล้ว", awaitingVerification: "โปรไฟล์บริษัทกำลังรอการยืนยัน", openCompanyPortal: "เปิดพอร์ทัลบริษัท",
     activity: "กิจกรรมของคุณ", history: "ประวัติการส่งข้อมูล", historyLead: "ติดตามรายการที่คุณแชร์กับ Atlas", submitRecord: "ส่งรายการ", submittedStep: "ส่งแล้ว", processing: "กำลังประมวลผล", review: "ตรวจสอบ", inAtlas: "อยู่ใน Atlas", openSource: "เปิดแหล่งข้อมูล",
@@ -85,7 +102,7 @@ export default async function ProfilePage({
     workspaceKicker: "YOUR ATLAS WORKSPACE", welcomeTitle: "Keep your contributions in one place.", welcomeLead: "Sign in with your email to follow submissions, check review progress, and build your public contribution history.",
     trackStatus: "Track submission status", keepEvidence: "Keep a record of your evidence", connectCommunity: "Connect your work to the community", simpleAccount: "A simple account for participating in the public atlas",
     welcome: "WELCOME", signInTitle: "Sign in or create an account", signInLead: "Use an email address you can access.", tryMock: "Try a mock account",
-    individual: "Individual", individualDemo: "Learn, simulate, and compete", company: "Company", companyDemo: "Submit models and view evaluations", admin: "Administrator", adminDemo: "Review accounts and operations",
+    individual: "Individual", individualDemo: "Learn, simulate, and compete", company: "Company", companyDemo: "Submit models and view evaluations", admin: "Administrator", adminDemo: "Review accounts and operations", subscriber: "Dashboard subscriber", subscriberDemo: "Try a subscription and open dashboards",
     signedIn: "SIGNED IN", signOut: "Sign out", contributionSummary: "Contribution summary", submitted: "Submitted", recordsShared: "records shared", approved: "Approved", accepted: "accepted into Atlas", inReview: "In review", awaitingReview: "awaiting review",
     companyWorkspace: "COMPANY WORKSPACE", companyAccount: "Company account", verified: "Verified organization", awaitingVerification: "Company profile awaiting verification", openCompanyPortal: "Open Company Portal",
     activity: "YOUR ACTIVITY", history: "Submission history", historyLead: "Follow the records you have shared with the atlas.", submitRecord: "Submit a record", submittedStep: "Submitted", processing: "Processing", review: "Review", inAtlas: "In Atlas", openSource: "Open source",
@@ -143,6 +160,7 @@ export default async function ProfilePage({
           <form action={loginAsUser.bind(null, "member.demo@humanoidth.local", "USER", undefined)}><button type="submit"><UserRound size={16} aria-hidden="true" /><span><strong>{profileCopy.individual}</strong><small>{profileCopy.individualDemo}</small></span></button></form>
           <form action={loginAsUser.bind(null, "company.demo@humanoidth.local", "COMPANY", "Eastern Automation Lab (อีสเทิร์น ออโตเมชัน)")}><button type="submit"><Building2 size={16} aria-hidden="true" /><span><strong>{profileCopy.company}</strong><small>{profileCopy.companyDemo}</small></span></button></form>
           <form action={loginAsUser.bind(null, "admin.demo@humanoidth.local", "ADMIN", undefined)}><button type="submit"><ShieldCheck size={16} aria-hidden="true" /><span><strong>{profileCopy.admin}</strong><small>{profileCopy.adminDemo}</small></span></button></form>
+          <form action={loginAsSubscriber}><button type="submit"><BarChart3 size={16} aria-hidden="true" /><span><strong>{profileCopy.subscriber}</strong><small>{profileCopy.subscriberDemo}</small></span></button></form>
         </div></details>}
       </section>
     </div> : <>

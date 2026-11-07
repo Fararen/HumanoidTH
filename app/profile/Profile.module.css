@@ -18,6 +18,7 @@
 .benefitList svg,.welcomeFoot svg { color:#a5d5b2; flex:0 0 auto; }
 .welcomeFoot { border-top:1px solid rgba(255,255,255,.17); color:#bed0c2; margin-top:27px; padding-top:17px; }
 .authCard { align-self:stretch; background:#fff; border:1px solid var(--profile-line); border-radius:20px; box-shadow:0 10px 30px rgba(35,62,43,.045); padding:clamp(23px,3vw,34px); }
+.registerHint { color:#77857c; font-size:11px; line-height:1.5; margin:14px 0 0; }
 .cardHeading h2 { color:var(--profile-ink); font-size:23px; letter-spacing:-.035em; margin:8px 0 6px; }
 .authForm { display:grid; gap:15px; margin-top:25px; }
 .authForm label { color:#34463a; display:grid; font-size:12px; font-weight:750; gap:7px; }

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { hasDashboardSubscription } from "@/lib/subscription";
 import { prisma } from "@/lib/prisma";
 import DashboardCharts from "./DashboardCharts";
 import { Bot, Database, FileText, Globe2, MessageSquareText } from "lucide-react";
@@ -21,6 +23,7 @@ function categoryForRobot(value: string | null) {
 }
 
 export default async function DashboardPage() {
+  if (!await hasDashboardSubscription()) redirect("/subscribe?from=/dashboard");
   let offline = false;
   let kpis = { robots: 0, sources: 0, contributions: 0, perspectives: 0, countries: 0 };
   let composition: Array<{ label: string; value: number }> = [], sourceTypes: Array<{ label: string; value: number }> = [], origins: Array<{ label: string; value: number }> = [], contributionTypes: Array<{ label: string; value: number }> = [], embodiment: Array<{ label: string; value: number }> = [], themes: Array<{ label: string; value: number }> = [];

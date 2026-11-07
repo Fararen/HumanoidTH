@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { hasDashboardSubscription } from "@/lib/subscription";
 import { getTranslation } from "@/lib/translations";
 import AnalyticsPlayground from "./AnalyticsPlayground";
 import AnalyticsBpmn from "./AnalyticsBpmn";
@@ -34,6 +36,7 @@ export const metadata: Metadata = {
     images: ["/logo.png"]
   }
 };export default async function AnalyticsPage() {
+  if (!await hasDashboardSubscription()) redirect("/subscribe?from=/analytics");
   const cookieStore = await cookies();
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);

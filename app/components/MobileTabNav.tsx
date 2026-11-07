@@ -13,9 +13,10 @@ import { getTranslation } from "@/lib/translations";
 
 interface MobileTabNavProps {
   currentLang?: "en" | "th";
+  currentEmail?: string;
 }
 
-export default function MobileTabNav({ currentLang = "en" }: MobileTabNavProps) {
+export default function MobileTabNav({ currentLang = "en", currentEmail }: MobileTabNavProps) {
   const pathname = usePathname() || "/";
   const t = getTranslation(currentLang);
   const tabs = [
@@ -23,7 +24,7 @@ export default function MobileTabNav({ currentLang = "en" }: MobileTabNavProps) 
     { href: "/dashboard", label: t.dashboard, icon: LayoutDashboard },
     { href: "/network", label: t.network, icon: Network },
     { href: "/robots", label: t.robots, icon: Bot },
-    { href: "/profile", label: t.profile, icon: CircleUserRound }
+    { href: currentEmail ? "/profile" : "/register", label: currentEmail ? t.profile : currentLang === "th" ? "สมัครสมาชิก" : "Sign up", icon: CircleUserRound }
   ];
 
   return (

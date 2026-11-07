@@ -15,7 +15,10 @@ export default function SidebarNav({ currentLang = "en", currentRole }: Props) {
   const groups = [
     { label: th ? "พื้นที่ทำงาน" : "WORKSPACE", items: [
       { href: "/", label: th ? "ภาพรวม" : "Overview", icon: Home },
+    ] },
+    { label: th ? "แดชบอร์ด" : "DASHBOARD", items: [
       { href: "/dashboard", label: th ? "แดชบอร์ด" : "Dashboard", icon: LayoutDashboard },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
     ] },
     { label: th ? "สำรวจข้อมูล" : "EXPLORE DATA", items: [
       { href: "/robots", label: th ? "Robot models" : "Robot models", icon: Bot },
@@ -26,7 +29,6 @@ export default function SidebarNav({ currentLang = "en", currentRole }: Props) {
     { label: th ? "วิเคราะห์และชุมชน" : "INSIGHTS & COMMUNITY", items: [
       { href: "/community", label: th ? "ชุมชนพูดคุย" : "Community", icon: MessageSquare },
       { href: "/challenges", label: th ? "การแข่งขัน" : "Challenges", icon: Trophy },
-      { href: "/analytics", label: th ? "Analytics" : "Analytics", icon: BarChart3 },
       { href: "/perspectives", label: th ? "มุมมองวิจัย" : "Research perspectives", icon: FileText },
       { href: "/contributions", label: th ? "ชุมชนผู้ร่วมให้ข้อมูล" : "Contributors", icon: UsersRound },
       { href: "/submit-data", label: th ? "ส่งข้อมูล" : "Submit data", icon: Send },

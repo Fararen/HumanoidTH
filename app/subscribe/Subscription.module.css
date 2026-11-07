@@ -1,0 +1,32 @@
+.page { color:#26392d; margin:24px auto 64px; max-width:1180px; padding:0 20px; }
+.heading { margin:0 auto 22px; max-width:650px; text-align:center; }
+.heading>span { color:#64836d; font-size:10px; font-weight:850; letter-spacing:.14em; }
+.heading h1 { color:#183326; font-size:clamp(30px,5vw,48px); letter-spacing:-.05em; line-height:1.08; margin:9px 0 10px; }
+.heading p { color:#6e7c72; font-size:14px; line-height:1.6; margin:0; }
+.statusNote { align-items:center; color:#7b6941; display:flex; font-size:11px; gap:7px; justify-content:center; margin:0 0 17px; }
+.planGrid { display:grid; gap:14px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.planCard { background:#fff; border:1px solid #dce5de; border-radius:16px; box-shadow:0 10px 28px rgba(34,62,42,.045); display:flex; flex-direction:column; min-width:0; padding:22px; position:relative; }
+.featured { border-color:#76a887; box-shadow:0 14px 36px rgba(48,103,67,.12); }
+.recommended { background:#e9f5eb; border-radius:999px; color:#3c754d; font-size:9px; font-weight:850; padding:6px 9px; position:absolute; right:14px; top:14px; }
+.planIcon { align-items:center; background:#edf5ee; border:1px solid #d7e7da; border-radius:11px; color:#356c48; display:flex; height:42px; justify-content:center; width:42px; }
+.planCard h2 { color:#1f3b2b; font-size:20px; letter-spacing:-.035em; margin:15px 0 5px; }
+.planLead { color:#748178; font-size:12px; line-height:1.5; margin:0; min-height:36px; }
+.price { align-items:baseline; color:#183326; display:flex; flex-wrap:wrap; font-size:24px; font-weight:850; gap:6px; letter-spacing:-.04em; margin:17px 0; }
+.price small { color:#78867c; font-size:10px; font-weight:600; letter-spacing:0; }
+.planCard ul { border-bottom:1px solid #e7ece8; border-top:1px solid #e7ece8; display:grid; gap:11px; list-style:none; margin:0 0 17px; min-height:110px; padding:16px 0; }
+.planCard li { align-items:flex-start; color:#42584a; display:flex; font-size:11px; gap:8px; line-height:1.45; }
+.planCard li svg { color:#4b8a5d; flex:0 0 auto; }
+.secondary,.mockButton { align-items:center; background:#245c3d; border:1px solid #245c3d; border-radius:9px; color:#fff; cursor:pointer; display:inline-flex; font:inherit; font-size:12px; font-weight:800; gap:7px; justify-content:center; min-height:40px; padding:0 13px; text-decoration:none; }
+.secondary:hover,.mockButton:hover { background:#17462d; }
+.secondary { background:#fff; border-color:#cbd9cf; color:#356747; }
+.secondary:hover { background:#f0f7f1; color:#17462d; }
+.disabledButton { background:#edf1ed; border:1px solid #dce5de; border-radius:9px; color:#77847a; cursor:not-allowed; font:inherit; font-size:10px; font-weight:750; line-height:1.4; min-height:40px; padding:7px 10px; }
+.checkoutNote { background:#fff8e9; border:1px solid #f0dfb7; border-radius:9px; color:#765d26 !important; font-size:11px !important; margin-top:16px !important; padding:10px 12px; }
+.mockButton { background:#fff; border-color:#cbd9cf; color:#356747; margin-top:14px; }
+.mockButton:hover { background:#f0f7f1; color:#17462d; }
+.signedOutNote { color:#748178; font-size:11px; margin:14px auto 0; text-align:center; }
+.signedOutNote a { color:#356747; font-weight:800; }
+.back { color:#4b7658; display:block; font-size:12px; font-weight:750; margin:18px auto 0; text-align:center; text-decoration:none; width:max-content; }
+.back:hover { color:#183326; }
+@media (max-width:850px) { .planGrid { grid-template-columns:1fr; max-width:520px; margin:0 auto; } .planCard ul { min-height:0; } }
+@media (max-width:560px) { .page { margin-top:8px; padding:0 14px; } .planCard { border-radius:14px; padding:20px; } }
