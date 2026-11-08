@@ -77,6 +77,12 @@ const POST_TYPE_CONFIG: Record<
     color: "#047857",
     border: "rgba(16, 185, 129, 0.25)"
   },
+  RESEARCH: {
+    label: "Research",
+    bg: "rgba(16, 185, 129, 0.08)",
+    color: "#047857",
+    border: "rgba(16, 185, 129, 0.25)"
+  },
   IDEA: {
     label: "Idea",
     bg: "rgba(234, 88, 12, 0.08)",
@@ -150,31 +156,7 @@ export default function CommunityClient({
   const [newImageUrl, setNewImageUrl] = useState("");
   const [authorName, setAuthorName] = useState("Robotics Explorer");
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      // Check for success banner from /community/submit
-      const successTitle = sessionStorage.getItem("humanoidth_new_post_success");
-      if (successTitle) {
-        setSuccessBanner(`โพสต์ "${successTitle}" เผยแพร่สำเร็จแล้ว และแสดงที่ด้านบนสุดของฟีด`);
-        setSortOrder("LATEST");
-        sessionStorage.removeItem("humanoidth_new_post_success");
-      }
-
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: CommunityPost[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const storedIds = new Set(parsed.map((p) => p.id));
-          const defaultsToAdd = initialPosts.filter((p) => !storedIds.has(p.id));
-          setPosts([...parsed, ...defaultsToAdd]);
-          return;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-  }, [initialPosts]);
+  useEffect(() => { setPosts(initialPosts); }, [initialPosts]);
 
   // Handle Voting (Reddit style: UP = Orange, DOWN = Blue)
   const handleVote = (postId: string, direction: "UP" | "DOWN") => {

@@ -3,6 +3,7 @@ export type PostType =
   | "DISCUSSION"
   | "TUTORIAL"
   | "SHOWCASE"
+  | "RESEARCH"
   | "NEWS"
   | "IDEA";
 

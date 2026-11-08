@@ -57,7 +57,7 @@ export default function CompanyNewModelClient() {
         setErrorMsg(data.error || "ไม่สามารถบันทึกข้อมูลรุ่นหุ่นยนต์ได้");
         return;
       }
-      router.push(`/company/models/${data.model.modelCode}`);
+      router.push(`/company/models/${data.model.id}`);
     } catch {
       setErrorMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {

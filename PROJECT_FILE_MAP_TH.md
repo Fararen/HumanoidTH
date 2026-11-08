@@ -1,5 +1,18 @@
 # แผนผังไฟล์โครงการ Thailand Humanoid Atlas
 
+## ส่วนที่เพิ่มตาม Roadmap · 8 พฤศจิกายน 2026
+
+- `lib/platform-catalog.ts`, `platform-policy.ts`, `platform-store.ts` — โปรโตคอล/บทเรียน กติกาเปลี่ยนสถานะ การเก็บข้อมูลและสิทธิ์ของ workflow
+- `components/platform/` — ฟอร์ม รายงาน Replay และหน้ารายการที่ใช้ร่วมกัน
+- `app/evaluate/`, `app/simulator/`, `app/competitions/`, `app/learn/`, `app/me/` — เส้นทางประเมิน ฝึก แข่งขัน เรียน และพื้นที่ส่วนตัว
+- `app/ops/`, `app/company/portal/`, `app/community/drafts/`, `app/community/report/` — งานเจ้าหน้าที่ พอร์ทัลบริษัท ร่างและการดูแลเนื้อหา
+- `app/leaderboards/benchmark/`, `app/leaderboards/competition/`, `app/results/` — อันดับที่แยกโหมด/รอบและผลที่เจ้าของยินยอมเผยแพร่
+- `lib/auth-token.ts`, `lib/session.ts`, `app/sign-in/` — รหัสผ่านและ session ที่ลงลายเซ็น
+- `scripts/dev-platform.mjs`, `local-database.mjs`, `platform-worker.ts`, `seed-local-platform.ts` — เปิดเว็บเต็มพร้อมฐานข้อมูลและข้อมูลนำร่องในเครื่อง
+- `test/platform-workflow.test.ts`, `test/platform.integration.ts`, `tests-node/platform.spec.ts` — การทดสอบกติกา ฐานข้อมูล และ browser
+
+เส้นทางทดลองและขอบเขตข้อมูลเดโมอยู่ใน [platform-pilot.md](docs/platform-pilot.md)
+
 ตรวจสอบไฟล์ที่ติดตามโดย Git แล้วทั้งหมด 155 ไฟล์ ณ วันที่จัดทำเอกสารฉบับเดิม (ไม่ใช่จำนวนไฟล์ปัจจุบัน)
 
 ## อัปเดตระบบ subscription — 8 พฤศจิกายน 2026

@@ -47,6 +47,7 @@ export default function RegisterAccountForm({ lang = "en" }: { lang?: "en" | "th
       </div>
     </fieldset>
     <label>{copy.email}<input name="email" type="email" required placeholder={copy.emailPlaceholder} autoComplete="email" /></label>
+    <label>{currentLang === "th" ? "รหัสผ่าน (อย่างน้อย 10 ตัวอักษร)" : "Password (at least 10 characters)"}<input name="password" type="password" minLength={10} maxLength={200} required autoComplete="new-password" /></label>
     <label>{copy.name} <span className={styles.optional}>({copy.optional})</span><input name="name" placeholder={copy.namePlaceholder} autoComplete="name" /></label>
     {accountType === "COMPANY" && <label>{copy.companyName}<input name="companyName" required placeholder={copy.companyPlaceholder} autoComplete="organization" /></label>}
     <button type="submit" className={styles.primaryButton}>{copy.create} {accountType === "COMPANY" ? copy.createCompany : copy.createIndividual} {currentLang === "th" ? "บัญชี" : "account"} <ArrowRight size={16} aria-hidden="true" /></button>

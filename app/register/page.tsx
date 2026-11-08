@@ -37,14 +37,14 @@ export default async function RegisterPage() {
     formKicker: "GET STARTED",
     formTitle: "Create your Atlas account",
     formLead: "Choose an account type and enter your email to continue.",
-    existing: "Already have an account? Continue with the same email.",
+    existing: "Already have an account? Sign in with your email and password.",
     profile: "Open profile"
   };
 
   return <div className={styles.profilePage}>
     <header className={styles.pageHeading}>
       <div><span className={styles.kicker}>{copy.kicker}</span><h1>{copy.title}</h1><p>{copy.lead}</p></div>
-      <Link className={styles.headingLink} href="/profile">{copy.profile} <ArrowRight size={16} aria-hidden="true" /></Link>
+      <Link className={styles.headingLink} href="/sign-in">{copy.profile} <ArrowRight size={16} aria-hidden="true" /></Link>
     </header>
     <div className={styles.signedOutLayout}>
       <section className={styles.welcomeCard}>

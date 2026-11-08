@@ -1,6 +1,6 @@
 # M01 · HRI Living Lab — implementation and evidence
 
-Audit date: 8 November 2026 (Asia/Bangkok). **Implementation verified with automated fixtures; live database rehearsal and human evaluation remain pending.**
+Audit date: 8 November 2026 (Asia/Bangkok). The initial audit below recorded a database outage. **Update: the full application now uses an isolated local database with 17 imported Atlas models; browser testing verified all four HRI outcomes, actual database saves and reload/replay. Human participant evidence remains pending.** See [the working platform pilot](platform-pilot.md) and [full-site HRI screenshot](evidence/platform/hri-live-atlas.png).
 
 ## Provenance and scope
 

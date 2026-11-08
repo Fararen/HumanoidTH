@@ -13,10 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CommunityPage() {
-  let posts: CommunityPost[] = MOCK_POSTS;
+  let posts: CommunityPost[] = [];
 
   try {
     const dbPosts = await prisma.communityPost.findMany({
+      where: { visibilityStatus: "PUBLISHED" },
       orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
       include: {
         _count: {
@@ -70,7 +71,7 @@ export default async function CommunityPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <CommunityClient initialPosts={posts} topics={MOCK_TOPICS} />
+      <nav className="platform-links"><a href="/community/drafts">ร่างในบัญชี · Account drafts</a><a href="/community/drafts/new">เขียนโพสต์ · Write post</a></nav><CommunityClient initialPosts={posts} topics={MOCK_TOPICS} />
     </div>
   );
 }

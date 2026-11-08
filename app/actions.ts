@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { getSessionUser, setSessionUser } from "@/lib/session";
+import { passwordHash } from "@/lib/auth-token";
 import type { SourceType } from "../generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { runAdapter } from "@/lib/ingest/adapters";
@@ -37,7 +39,7 @@ function readOptionalDateField(formData: FormData, key: string) {
 }
 
 async function requireAdminUser() {
-  const currentEmail = (await cookies()).get("user_email")?.value;
+  const currentEmail = (await getSessionUser())?.email;
   if (!currentEmail) throw new Error("Administrator access is required.");
   const user = await prisma.user.findUnique({ where: { email: currentEmail }, select: { id: true, email: true, name: true, role: true } });
   if (user?.role !== "ADMIN") throw new Error("Administrator access is required.");
@@ -67,7 +69,7 @@ function revalidateAtlasCms() {
 
 export async function createSubmission(formData: FormData) {
   const cookieStore = await cookies();
-  const currentEmail = cookieStore.get("user_email")?.value;
+  const currentEmail = (await getSessionUser())?.email;
   if (!currentEmail) {
     redirect("/profile?from=/submit-data");
   }
@@ -105,7 +107,7 @@ export async function createSubmission(formData: FormData) {
 
 export async function createCompetitionHostRequest(formData: FormData) {
   const cookieStore = await cookies();
-  const currentEmail = cookieStore.get("user_email")?.value;
+  const currentEmail = (await getSessionUser())?.email;
   if (!currentEmail) redirect("/profile?from=/challenges/host");
 
   const user = await prisma.user.findUnique({ where: { email: currentEmail } });
@@ -319,67 +321,30 @@ export async function loginAsSubscriber() {
 }
 
 export async function registerAndLoginUser(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  const name = String(formData.get("name") ?? "").trim();
-  const accountType = String(formData.get("accountType") ?? "USER") === "COMPANY" ? "COMPANY" : "USER";
-  const companyName = String(formData.get("companyName") ?? "").trim();
-  const redirectTo = String(formData.get("redirectTo") ?? "/profile");
-
-  if (!email) {
-    throw new Error("Email is required");
-  }
-  if (accountType === "COMPANY" && !companyName) {
-    throw new Error("Company name is required for a company account");
-  }
-
-  const user = await prisma.$transaction(async (tx) => {
-    const account = await tx.user.upsert({
-      where: { email },
-      update: {
-        name: name || undefined,
-        role: accountType
-      },
-      create: {
-        email,
-        name: name || email.split("@")[0],
-        role: accountType
-      }
-    });
-
-    if (accountType === "COMPANY") {
-      const existingCompany = await tx.company.findUnique({ where: { name: companyName } });
-      const company = existingCompany || await tx.company.create({ data: { name: companyName } });
-      await tx.companyMembership.upsert({
-        where: { userId_companyId: { userId: account.id, companyId: company.id } },
-        update: {},
-        create: { userId: account.id, companyId: company.id, role: existingCompany ? "EDITOR" : "OWNER" }
-      });
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const name = String(formData.get("name") || "").trim().slice(0, 150);
+  const password = String(formData.get("password") || "");
+  const companyName = String(formData.get("companyName") || "").trim().slice(0, 150);
+  const company = formData.get("accountType") === "COMPANY";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 10 || password.length > 200 || (company && !companyName)) redirect("/sign-in?error=invalid");
+  if (await prisma.user.findUnique({ where: { email } })) redirect("/sign-in?error=existing");
+  const user = await prisma.$transaction(async tx => {
+    const account = await tx.user.create({ data: { email, name, passwordHash: passwordHash(password), role: company ? "COMPANY" : "USER" } });
+    if (company) {
+      // Registration cannot join another company's organization simply by knowing its name.
+      const organization = await tx.company.create({ data: { name: companyName } });
+      await tx.companyMembership.create({ data: { userId: account.id, companyId: organization.id, role: "OWNER" } });
     }
-
     return account;
-  }).catch((error) => {
-    console.error("Account registration failed:", error);
-    redirect("/profile?accountError=database");
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.delete("demo_account");
-  cookieStore.delete("demo_company_name");
-  cookieStore.delete("demo_subscription");
-  cookieStore.set("user_email", user.email, { path: "/" });
-  cookieStore.set("user_role", user.role, { path: "/" });
-  if (user.role === "ADMIN") {
-    cookieStore.set("admin_session", "true", { path: "/" });
-  } else {
-    cookieStore.delete("admin_session");
-  }
+  }).catch(() => redirect("/sign-in?error=invalid"));
+  await setSessionUser(user);
   revalidatePath("/profile");
-  revalidateAtlasCms();
-  redirect(redirectTo.startsWith("/") ? redirectTo : "/profile");
+  redirect("/me");
 }
 
 export async function logoutUser() {
   const cookieStore = await cookies();
+  cookieStore.delete("user_session");
   cookieStore.delete("user_email");
   cookieStore.delete("user_role");
   cookieStore.delete("admin_session");
@@ -406,6 +371,7 @@ export async function adminLoginAction(formData: FormData) {
     });
 
     const cookieStore = await cookies();
+    await setSessionUser(user);
     cookieStore.set("user_email", user.email, { path: "/" });
     cookieStore.set("user_role", "ADMIN", { path: "/" });
     cookieStore.set("admin_session", "true", { path: "/" });

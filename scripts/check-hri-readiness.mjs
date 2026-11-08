@@ -1,4 +1,5 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: [".env.local", ".env"], quiet: true });
 import pg from "pg";
 import { execFileSync } from "node:child_process";
 

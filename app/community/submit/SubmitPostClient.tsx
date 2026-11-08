@@ -76,6 +76,13 @@ const POST_TYPE_CONFIG: Record<
     border: "rgba(16, 185, 129, 0.28)",
     desc: "SDK updates, hackathon announcements, or university lab breakthroughs"
   },
+  RESEARCH: {
+    label: "Research",
+    bg: "rgba(16, 185, 129, 0.08)",
+    color: "#047857",
+    border: "rgba(16, 185, 129, 0.28)",
+    desc: "SDK updates, hackathon announcements, or university lab breakthroughs"
+  },
   IDEA: {
     label: "Idea",
     bg: "rgba(234, 88, 12, 0.08)",

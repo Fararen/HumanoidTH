@@ -258,7 +258,7 @@ export default function CompanyLeaderboardClient({
             </thead>
             <tbody>
               {publishedLeaderboard.map((item, idx) => (
-                <tr key={`${item.modelCode}-${item.version}`}>
+                <tr key={`${item.id}-${item.version}`}>
                   <td className={styles.rankCell}>
                     <span className={idx === 0 ? styles.rankBadgeTop : undefined}>
                       #{idx + 1}
@@ -291,7 +291,7 @@ export default function CompanyLeaderboardClient({
                     <span className={styles.demoBadge}>ข้อมูลเดโม</span>
                   </td>
                   <td>
-                    <Link href={`/robots/${item.modelCode}`} className={styles.secondaryBtn}>
+                    <Link href={`/robots/${item.id}`} className={styles.secondaryBtn}>
                       เปิดโปรไฟล์และหลักฐาน <ArrowUpRight size={14} />
                     </Link>
                   </td>
@@ -367,20 +367,20 @@ export default function CompanyLeaderboardClient({
                   <td>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       <Link
-                        href={`/company/models/${item.modelCode}`}
+                        href={`/company/models/${item.id}`}
                         className={styles.secondaryBtn}
                       >
                         <Building2 size={13} /> พอร์ทัลบริษัท
                       </Link>
                       <Link
-                        href={`/ops/company/${item.modelCode}`}
+                        href={`/ops/company/${item.id}`}
                         className={styles.secondaryBtn}
                       >
                         <SlidersHorizontal size={13} /> หน้าผู้ตรวจ (/ops)
                       </Link>
                       {(item.workflowStatus === "PASSED" || item.workflowStatus === "PUBLISHED") && (
                         <Link
-                          href={`/company/models/${item.modelCode}#listing`}
+                          href={`/company/models/${item.id}#listing`}
                           className={styles.primaryBtn}
                         >
                           ตรวจตัวอย่างและเผยแพร่

@@ -13,7 +13,7 @@ export async function GET(
     // Find by slug or id
     const post = await prisma.communityPost.findFirst({
       where: {
-        OR: [{ id }, { slug: id }]
+        visibilityStatus: "PUBLISHED", OR: [{ id }, { slug: id }]
       },
       include: {
         comments: {

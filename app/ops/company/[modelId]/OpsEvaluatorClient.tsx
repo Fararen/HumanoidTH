@@ -41,14 +41,14 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
   const handleDecision = async (decision: "PASSED" | "NEEDS_REVISION") => {
     setIsSaving(true);
     try {
-      const nextSafety = decision === "PASSED" ? "PASSED" : safetyStatus;
+      const nextSafety = safetyStatus;
       const defaultNote =
         decision === "PASSED"
           ? `ผู้ตรวจยืนยันว่าเวอร์ชัน ${model.version} (${model.firmwareVersion}) ตรงกับรายงานผลทดสอบตัวอย่าง ผ่านเกณฑ์ Safety, Precision ${precisionMm} มม. และ Speed ${speedSec} วินาที อนุญาตให้บริษัทตรวจสอบตัวอย่างและยืนยันเผยแพร่ได้`
           : evaluatorNotes ||
             "ไม่ผ่านเกณฑ์ Safety ตามโปรโตคอลตัวอย่าง กรุณาปรับปรุงเวลาหยุดฉุกเฉินและส่งตรวจซ้ำ";
 
-      const res = await fetch(`/api/company-models/${model.modelCode}`, {
+      const res = await fetch(`/api/company-models/${model.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,6 +61,7 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
         })
       });
       const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Could not save review");
       if (data.success && data.model) {
         setModel(data.model);
         setSafetyStatus(data.model.safetyStatus === "PASSED" ? "PASSED" : "NEEDS_IMPROVEMENT");
@@ -68,8 +69,8 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
         setToastMsg(data.message);
         setTimeout(() => setToastMsg(null), 4500);
       }
-    } catch {
-      // Ignore error
+    } catch (error) {
+      setToastMsg(error instanceof Error ? error.message : "Could not save review; retry");
     } finally {
       setIsSaving(false);
     }
@@ -92,7 +93,7 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link
-            href={`/company/models/${model.modelCode}#listing`}
+            href={`/company/models/${model.id}#listing`}
             className={styles.primaryBtn}
           >
             <Building2 size={14} /> ไปหน้ายืนยันเผยแพร่ของบริษัท (#listing)
@@ -104,7 +105,7 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
         <div className={styles.toast} role="status">
           <span>{toastMsg}</span>
           <Link
-            href={`/company/models/${model.modelCode}#listing`}
+            href={`/company/models/${model.id}#listing`}
             style={{ color: "#ffffff", fontWeight: 800, textDecoration: "underline" }}
           >
             ไปหน้ายืนยันเผยแพร่ของบริษัท →
@@ -307,7 +308,7 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
               หลังกดบันทึกผลแล้ว สามารถสลับกลับไปที่หน้าบริษัทเพื่อดูสถานะที่เปลี่ยนไปได้ทันที
             </span>
             <Link
-              href={`/company/models/${model.modelCode}#listing`}
+              href={`/company/models/${model.id}#listing`}
               className={styles.secondaryBtn}
             >
               เปิดหน้าบริษัท (#listing) <ArrowUpRight size={14} />

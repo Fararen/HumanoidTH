@@ -1,3 +1,4 @@
+import { publicCompanyModel } from "@/lib/company-policy";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
@@ -31,14 +32,15 @@ export default async function RobotProfilePage({ params }: { params: Promise<{ i
 
   // 1. Check if `:id` matches an M02 Company Leaderboard Product Evaluation (`:productId`)
   try {
-    await ensureM02Seeded();
+
     const companyEval = await prisma.companyModelEvaluation.findFirst({
       where: {
-        OR: [{ id }, { modelCode: id }]
+        id, isPublished: true, workflowStatus: "PUBLISHED", safetyStatus: "PASSED"
       }
     });
     if (companyEval) {
-      return <CompanyProductProfileClient model={serializeCompanyModel(companyEval)} />;
+      const publicModel = publicCompanyModel(serializeCompanyModel(companyEval));
+      if (publicModel) return <CompanyProductProfileClient model={publicModel} />;
     }
   } catch (err) {
     console.warn("CompanyModelEvaluation lookup skipped:", err);

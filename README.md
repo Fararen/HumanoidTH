@@ -1,5 +1,9 @@
 # 🤖 Thailand Humanoid Atlas 🗺️
 
+The Thai Robotics roadmap pilot is now available in the full application: learning, a saved-program grid simulator, physical evaluation workflows, company review/versioning, consent-based benchmarks, competitions, community moderation and a personal workspace. See [the pilot guide](docs/platform-pilot.md) for roles, tested routes and remaining real-world acceptance work.
+
+Run `pnpm demo`, then open **http://127.0.0.1:3000**. The local setup preserves `.env`, creates an isolated persistent demo database and provides role selection at `/demo`. On the configured Windows workstation, run `.\scratch\tooling\node.exe scripts/dev-platform.mjs` if Node/pnpm are not on PATH.
+
 <p align="center">
 <img width="1672" height="941" alt="ChatGPT Image Jul 3, 2026, 06_45_37 AM" src="https://github.com/user-attachments/assets/c9281d22-6d95-4956-90f7-3039bad08947" />
 </p>

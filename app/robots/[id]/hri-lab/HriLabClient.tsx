@@ -188,7 +188,7 @@ export default function HriLabClient({
   };
 
   function openSavedRun(item: HriSavedRun) {
-    if (canAct || saving.current) return;
+    if (phase === "GUIDING" || saving.current) return;
     attemptedRuns.current.add(item.runCode);
     const phases: Record<HriSavedRun["testCaseType"], HriRun["phase"]> = {
       NAVIGATION_SUCCESS: "ARRIVED", STAFF_HANDOFF: "HANDOFF_STAFF", USER_CANCEL: "CANCELLED", LOAD_ERROR: "ERROR_RECOVERY"
@@ -1029,7 +1029,7 @@ export default function HriLabClient({
                     className={`${styles.historyChip} ${
                       item.runCode === runCode ? styles.historyChipActive : ""
                     }`}
-                    disabled={canAct || isSavingRun}
+                    disabled={phase === "GUIDING" || isSavingRun}
                     onClick={() => openSavedRun(item)}
                   >
                     {item.runCode} · {item.terminalStatus} ({item.durationSec}s)

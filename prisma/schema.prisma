@@ -41,6 +41,11 @@ enum UserRole {
   USER
   COMPANY
   ADMIN
+  REVIEWER
+  LAB
+  ORGANIZER
+  JUDGE
+  MODERATOR
 }
 
 enum CompanyMemberRole {
@@ -69,6 +74,7 @@ model User {
   email              String              @unique
   name               String?
   role               UserRole            @default(USER)
+  passwordHash       String?
   submissions        SubmittedData[]
   companyMemberships CompanyMembership[]
   subscriptions      Subscription[]
@@ -312,6 +318,9 @@ model CommunityPost {
   id             String             @id @default(cuid())
   slug           String             @unique
   title          String
+  authorId       String?
+  visibilityStatus String           @default("PUBLISHED")
+  sourcesJson    Json               @default("[]")
   content        String
   type           String             @default("DISCUSSION")
   communityName  String             @default("r/HumanoidTH")
@@ -416,6 +425,11 @@ model HriSimulationRun {
 model CompanyModelEvaluation {
   id                  String   @id @default(cuid())
   companyId           String?
+  reviewerId          String?
+  approvedSnapshot    Json     @default("{}")
+  historyJson         Json     @default("[]")
+  revision            Int      @default(0)
+  physicalReportId    String?
   company             Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   modelCode           String
   version             String   @default("v1.0.0")
@@ -454,4 +468,38 @@ model CompanyModelEvaluation {
   @@index([companyId])
   @@index([groupId, isPublished])
   @@index([workflowStatus])
+}
+
+model PlatformRecord {
+  id           String   @id @default(cuid())
+  kind         String
+  ownerId      String
+  requestHash  String?
+  uniqueKey    String?  @unique
+  assignedToId String?
+  parentId     String?
+  title        String
+  status       String   @default("DRAFT")
+  revision     Int      @default(0)
+  isPublished  Boolean  @default(false)
+  data         Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([kind, ownerId])
+  @@index([kind, status, isPublished])
+  @@index([parentId])
+  @@index([assignedToId])
+}
+
+model PlatformEvent {
+  id         String   @id @default(cuid())
+  recordId   String
+  actorId    String
+  action     String
+  revision   Int
+  details    Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@unique([recordId, revision])
 }

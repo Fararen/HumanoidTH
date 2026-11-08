@@ -1,3 +1,5 @@
+import { getSessionUser } from "@/lib/session";
+import "./platform.css";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { IBM_Plex_Sans_Thai, Inter } from "next/font/google";
@@ -98,8 +100,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const cookieStore = await cookies();
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);
-  const currentRole = cookieStore.get("user_role")?.value;
-  const currentEmail = cookieStore.get("user_email")?.value;
+  const session = await getSessionUser();
+  const currentRole = session?.role;
+  const currentEmail = session?.email;
   const siteUrl = getSiteUrl();
   const structuredData = {
     "@context": "https://schema.org",

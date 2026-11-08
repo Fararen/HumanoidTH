@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ensureM02Seeded, serializeCompanyModel } from "@/lib/company-leaderboard";
-import { hasSessionRole } from "@/lib/session";
+import { getSessionUser } from "@/lib/session";
+import { companyAccess } from "@/lib/company-access";
 import CompanyModelPortalClient from "./CompanyModelPortalClient";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +19,18 @@ export default async function CompanyModelDetailPage({
 }: {
   params: Promise<{ modelId: string }>;
 }) {
-  if (!await hasSessionRole("COMPANY", "ADMIN")) redirect("/profile?from=/company/models");
-  await ensureM02Seeded();
+  const user = await getSessionUser();
+  if (!user) redirect("/sign-in");
+
   const { modelId } = await params;
 
   const found = await prisma.companyModelEvaluation.findFirst({
     where: {
-      OR: [{ id: modelId }, { modelCode: modelId }]
+      id: modelId
     }
   });
 
-  if (!found) {
+  if (!found || !(await companyAccess(user, found)).read) {
     notFound();
   }
 

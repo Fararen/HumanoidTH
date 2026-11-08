@@ -1,3 +1,4 @@
+import { getSessionUser } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -39,8 +40,9 @@ export default async function ProfilePage({
 }) {
   const params = await searchParams;
   const cookieStore = await cookies();
-  const currentEmail = cookieStore.get("user_email")?.value;
-  const currentRole = cookieStore.get("user_role")?.value || "USER";
+  const session = await getSessionUser();
+  const currentEmail = session?.email;
+  const currentRole = session?.role || "USER";
   const demoRole = cookieStore.get("demo_account")?.value;
   const isDemoAccount = process.env.NODE_ENV !== "production" &&
     Boolean(currentEmail) && ["USER", "COMPANY", "ADMIN"].includes(demoRole || "") && demoRole === currentRole;

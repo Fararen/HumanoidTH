@@ -34,6 +34,7 @@ const POST_TYPE_CONFIG: Record<
   DISCUSSION: { label: "Discussion", bg: "rgba(25, 82, 60, 0.08)", color: "#19523c", border: "rgba(25, 82, 60, 0.25)" },
   TUTORIAL: { label: "Tutorial", bg: "rgba(59, 130, 246, 0.1)", color: "#1d4ed8", border: "rgba(59, 130, 246, 0.3)" },
   SHOWCASE: { label: "Showcase", bg: "rgba(168, 85, 247, 0.1)", color: "#7e22ce", border: "rgba(168, 85, 247, 0.3)" },
+  RESEARCH: { label: "Research", bg: "#e8f0ff", color: "#204899", border: "#aec5f0" },
   NEWS: { label: "News", bg: "rgba(16, 185, 129, 0.12)", color: "#047857", border: "rgba(16, 185, 129, 0.3)" },
   IDEA: { label: "Idea", bg: "rgba(249, 115, 22, 0.1)", color: "#c2410c", border: "rgba(249, 115, 22, 0.3)" }
 };
@@ -46,19 +47,7 @@ export default function PostDetailClient({
   initialComments,
   postId
 }: PostDetailClientProps) {
-  const [post, setPost] = useState<CommunityPost | null>(() => {
-    if (initialPost) return initialPost;
-    if (typeof window !== "undefined") {
-      try {
-        const storedPosts = localStorage.getItem(POSTS_STORAGE_KEY);
-        if (storedPosts) {
-          const parsed: CommunityPost[] = JSON.parse(storedPosts);
-          return parsed.find((p) => p.id === postId) || null;
-        }
-      } catch {}
-    }
-    return null;
-  });
+  const [post, setPost] = useState<CommunityPost | null>(initialPost);
   const [comments, setComments] = useState<PostComment[]>(initialComments);
   const [commentText, setCommentText] = useState("");
   const [commenterName, setCommenterName] = useState("Robotics Explorer");
@@ -66,27 +55,7 @@ export default function PostDetailClient({
   const [replyText, setReplyText] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
-  // Hydrate post and comments from localStorage
-  useEffect(() => {
-    try {
-      // 1. Post hydration
-      const storedPosts = localStorage.getItem(POSTS_STORAGE_KEY);
-      if (storedPosts) {
-        const parsed: CommunityPost[] = JSON.parse(storedPosts);
-        const match = parsed.find((p) => p.id === postId);
-        if (match) setPost(match);
-      }
-
-      // 2. Comments hydration
-      const storedComments = localStorage.getItem(`${COMMENTS_STORAGE_PREFIX}${postId}`);
-      if (storedComments) {
-        const parsed: PostComment[] = JSON.parse(storedComments);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setComments(parsed);
-        }
-      }
-    } catch {}
-  }, [postId]);
+  useEffect(() => { setPost(initialPost); setComments(initialComments); }, [initialPost, initialComments]);
 
   // Vote on Post
   const handlePostVote = (direction: "UP" | "DOWN") => {

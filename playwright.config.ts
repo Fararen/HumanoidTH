@@ -4,7 +4,7 @@ const useExternalServer = process.env.PLAYWRIGHT_EXTERNAL_SERVER === "1";
 
 export default defineConfig({
   testDir: "./tests-node",
-  testIgnore: "hri-lab.spec.ts", // Component harness has its own server/config.
+  testIgnore: ["hri-lab.spec.ts", "platform.spec.ts"], // Separate component/local-database suites.
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

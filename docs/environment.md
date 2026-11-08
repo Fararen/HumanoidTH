@@ -1,5 +1,9 @@
 # ตั้งค่า .env
 
+สำหรับเว็บนำร่องที่เพิ่มตาม Roadmap ใช้ `pnpm demo` หรือบนเครื่องนี้ `.\scratch\tooling\node.exe scripts/dev-platform.mjs` ตัวช่วยจะสร้าง `.env.local` สำหรับฐานข้อมูลในเครื่องและ `SESSION_SECRET` แบบสุ่ม โดยเก็บ `.env` เดิมไว้ ดูเส้นทางและบทบาทใน [platform-pilot.md](platform-pilot.md)
+
+บัญชีใหม่ต้องมีรหัสผ่าน และ session ที่ลงลายเซ็นต้องใช้ `SESSION_SECRET` อย่างน้อย 32 ตัวอักษรที่คงเดิมข้ามการรีสตาร์ต ตั้งค่านี้ใน environment จริงเมื่อ deploy; `LOCAL_DEMO_MODE=1` ใช้เฉพาะเว็บเดโมที่ bind กับ loopback เพื่อเปิด `/demo` สำหรับเลือกบทบาท
+
 กรอกค่าที่ไฟล์ `.env` ในรากโปรเจกต์ ซึ่งถูก Git ignore ไว้ ส่วน `.env.example` เป็นแม่แบบที่แชร์ได้และต้องไม่มี key จริง
 
 | ตัวแปร | ใช้ทำอะไร |

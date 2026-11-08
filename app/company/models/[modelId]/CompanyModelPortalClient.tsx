@@ -47,7 +47,7 @@ export default function CompanyModelPortalClient({
     setIsBusy(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/company-models/${model.modelCode}`, {
+      const res = await fetch(`/api/company-models/${model.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -82,7 +82,7 @@ export default function CompanyModelPortalClient({
     setIsBusy(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/company-models/${model.modelCode}`, {
+      const res = await fetch(`/api/company-models/${model.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,10 +127,10 @@ export default function CompanyModelPortalClient({
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href={`/ops/company/${model.modelCode}`} className={styles.secondaryBtn}>
+          <Link href={`/ops/company/${model.id}`} className={styles.secondaryBtn}>
             <ClipboardCheck size={14} /> สลับไปหน้าผู้ตรวจ (/ops/company/{model.modelCode})
           </Link>
-          <Link href={`/robots/${model.modelCode}`} className={styles.secondaryBtn}>
+          <Link href={`/robots/${model.id}`} className={styles.secondaryBtn}>
             <Eye size={14} /> ดูหน้าโปรไฟล์ผู้ซื้อ (/robots/{model.modelCode})
           </Link>
         </div>
@@ -377,7 +377,7 @@ export default function CompanyModelPortalClient({
                     : "ส่งให้ผู้ตรวจทวนผล (Submit for Review)"}
                 </button>
                 <Link
-                  href={`/ops/company/${model.modelCode}`}
+                  href={`/ops/company/${model.id}`}
                   className={styles.secondaryBtn}
                 >
                   ไปที่หน้าผู้ตรวจ <ArrowUpRight size={14} />
@@ -520,7 +520,7 @@ export default function CompanyModelPortalClient({
               <span>
                 รุ่นนี้ต้องผ่านการตรวจอนุมัติจากผู้ตรวจ (สถานะ <code>PASSED</code>) และผ่านเกณฑ์{" "}
                 <code>Safety</code> ก่อน กรุณาส่งตรวจและเปิดหน้า{" "}
-                <Link href={`/ops/company/${model.modelCode}`} style={{ color: "#6e1a1a", fontWeight: 800 }}>
+                <Link href={`/ops/company/${model.id}`} style={{ color: "#6e1a1a", fontWeight: 800 }}>
                   /ops/company/{model.modelCode}
                 </Link>{" "}
                 เพื่อบันทึกผลผ่านจากฝั่งผู้ตรวจ

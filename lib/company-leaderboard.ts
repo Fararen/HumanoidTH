@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { publicCompanyModel } from "./company-policy";
+import { PILOT_PROTOCOL } from "./platform-catalog";
 
 export type CompanyEvidenceLink = {
   id: string;
@@ -67,6 +69,11 @@ export const M02_GROUPS: Record<
     rankingRule: string;
   }
 > = {
+  "physical-pick-place-pilot-v1": {
+    groupId: "physical-pick-place-pilot-v1", groupName: "ข้อมูลเดโม · Physical pick-place pilot", groupNameEn: "Physical pick-place pilot (demo)",
+    protocolCode: PILOT_PROTOCOL.code, robotClass: PILOT_PROTOCOL.robotClass, taskDescription: "Pilot pick/place workflow demonstration", testConditions: PILOT_PROTOCOL.conditions,
+    safetyRule: PILOT_PROTOCOL.safety, rankingRule: "Precision mm ascending, then seconds/cycle ascending"
+  },
   "industrial-pick-place": {
     groupId: "industrial-pick-place",
     groupName: "หุ่นยนต์หยิบวางชิ้นงานในภาคการผลิต (Industrial Pick & Place)",
@@ -455,15 +462,15 @@ export function getM02FallbackModels(groupId: string): CompanyModelRecord[] {
 
 export async function loadM02CompanyModels(groupId: string) {
   try {
-    await ensureM02Seeded();
+
     const rows = await prisma.companyModelEvaluation.findMany({
-      where: { groupId },
+      where: { groupId, isPublished: true, workflowStatus: "PUBLISHED", safetyStatus: "PASSED" },
       orderBy: [{ precisionMm: "asc" }, { speedSec: "asc" }, { createdAt: "asc" }]
     });
-    return { models: rows.map(serializeCompanyModel), isDatabaseAvailable: true };
+    return { models: rows.map(serializeCompanyModel).map(publicCompanyModel).filter((model): model is CompanyModelRecord => Boolean(model)), isDatabaseAvailable: true };
   } catch (error) {
     if (!isMissingCompanyEvaluationTable(error)) throw error;
     console.warn("CompanyModelEvaluation table is unavailable; showing read-only M02 demo data.");
-    return { models: getM02FallbackModels(groupId), isDatabaseAvailable: false };
+    return { models: [], isDatabaseAvailable: false };
   }
 }

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ensureM02Seeded, serializeCompanyModel } from "@/lib/company-leaderboard";
-import { hasSessionRole } from "@/lib/session";
+import { getSessionUser } from "@/lib/session";
+import { companyAccess } from "@/lib/company-access";
 import OpsEvaluatorClient from "./OpsEvaluatorClient";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +19,18 @@ export default async function OpsEvaluatorPage({
 }: {
   params: Promise<{ modelId: string }>;
 }) {
-  if (!await hasSessionRole("ADMIN")) redirect("/profile?from=/ops/company");
-  await ensureM02Seeded();
+  const user = await getSessionUser();
+  if (!user) redirect("/sign-in");
+
   const { modelId } = await params;
 
   const found = await prisma.companyModelEvaluation.findFirst({
     where: {
-      OR: [{ id: modelId }, { modelCode: modelId }]
+      id: modelId
     }
   });
 
-  if (!found) {
+  if (!found || !(await companyAccess(user, found)).review) {
     notFound();
   }
 

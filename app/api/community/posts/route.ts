@@ -1,3 +1,5 @@
+import { getSessionUser } from "@/lib/session";
+import { initialData } from "@/lib/platform-policy";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -11,7 +13,7 @@ export async function GET(request: Request) {
     const tag = searchParams.get("tag");
     const search = searchParams.get("search");
 
-    const where: any = {};
+    const where: any = { visibilityStatus: "PUBLISHED" };
 
     if (flair && flair !== "ALL") {
       where.type = flair.toUpperCase();
@@ -98,7 +100,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.id.startsWith("demo:")) return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     const body = await request.json();
+    const checked = initialData("DRAFT", { ...body, tags: Array.isArray(body.tags) ? body.tags.join(",") : body.tags || "" }, user).data;
+    if (["NEWS", "RESEARCH"].includes(String(checked.type)) && !(checked.sources as string[]).length) return NextResponse.json({ success: false, error: "Source references required" }, { status: 400 });
     const { title, content, type, tags, mediaUrl, authorName } = body;
 
     if (!title || !title.trim()) {
@@ -119,12 +125,13 @@ export async function POST(request: Request) {
       ? tags.split(",").map((t: string) => t.trim().replace(/^#/, "")).filter(Boolean)
       : ["Humanoid", "Robotics"];
 
-    const cleanAuthor = (authorName || "Robotics Explorer").trim();
+    const cleanAuthor = user.name || user.email.split("@")[0];
     const authorHandle = cleanAuthor.toLowerCase().replace(/[^a-z0-9_]/g, "_") || "robotics_explorer";
 
     const newPost = await prisma.communityPost.create({
       data: {
         slug,
+        authorId: user.id, sourcesJson: checked.sources as string[],
         title: title.trim(),
         content: (content || "").trim(),
         type: type || "DISCUSSION",

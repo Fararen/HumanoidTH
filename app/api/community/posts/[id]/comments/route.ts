@@ -1,3 +1,4 @@
+import { getSessionUser } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -8,6 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.id.startsWith("demo:")) return NextResponse.json({ success: false, error: "Sign in required" }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
     const { content, parentId, authorName } = body;
@@ -19,7 +22,7 @@ export async function POST(
     // Resolve post ID (might be slug or id)
     const post = await prisma.communityPost.findFirst({
       where: {
-        OR: [{ id }, { slug: id }]
+        visibilityStatus: "PUBLISHED", OR: [{ id }, { slug: id }]
       },
       select: { id: true }
     });
@@ -28,7 +31,8 @@ export async function POST(
       return NextResponse.json({ success: false, error: "Post not found" }, { status: 404 });
     }
 
-    const cleanAuthor = (authorName || "Robotics Enthusiast").trim();
+    if (parentId && !await prisma.communityComment.findFirst({ where: { id: parentId, postId: post.id } })) return NextResponse.json({ success: false, error: "Reply target not found" }, { status: 404 });
+    const cleanAuthor = user.name || user.email.split("@")[0];
     const authorHandle = cleanAuthor.toLowerCase().replace(/[^a-z0-9_]/g, "_") || "enthusiast";
 
     const newComment = await prisma.communityComment.create({

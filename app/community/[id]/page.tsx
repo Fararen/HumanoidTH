@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import PostDetailClient from "./PostDetailClient";
@@ -15,7 +16,7 @@ export async function generateMetadata({
   const { id } = await params;
   try {
     const post = await prisma.communityPost.findFirst({
-      where: { OR: [{ id }, { slug: id }] },
+      where: { visibilityStatus: "PUBLISHED", OR: [{ id }, { slug: id }] },
       select: { title: true, content: true }
     });
     if (post) {
@@ -46,7 +47,7 @@ export default async function PostDetailPage({
 
   try {
     const dbPost = await prisma.communityPost.findFirst({
-      where: { OR: [{ id }, { slug: id }] },
+      where: { visibilityStatus: "PUBLISHED", OR: [{ id }, { slug: id }] },
       include: {
         comments: { orderBy: { createdAt: "asc" } },
         _count: { select: { comments: true } }
@@ -120,14 +121,12 @@ export default async function PostDetailPage({
     console.warn("Could not query post from DB, using fallback:", err);
   }
 
-  if (!post) {
-    post = MOCK_POSTS.find((p) => p.id === id || p.slug === id) || null;
-    comments = MOCK_COMMENTS[id] || [];
-  }
+  if (!post) notFound();
 
+  const sourcePost = await prisma.communityPost.findFirst({ where: { visibilityStatus: "PUBLISHED", OR: [{ id }, { slug: id }] }, select: { sourcesJson: true } });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PostDetailClient initialPost={post} initialComments={comments} postId={id} />
+      <nav className="platform-links"><Link href={`/community/report/${post.id}`}>รายงานเนื้อหา · Report post</Link><Link href="/community/drafts">My drafts</Link></nav><section>{Array.isArray(sourcePost?.sourcesJson) && sourcePost.sourcesJson.filter(url => typeof url === "string" && /^https?:\/\//.test(url)).map((url,index) => <p key={index}><a href={String(url)} target="_blank" rel="noreferrer">แหล่งอ้างอิง · Source {index+1}</a></p>)}</section><PostDetailClient initialPost={post} initialComments={comments} postId={id} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { publicCompanyModel } from "@/lib/company-policy";
 import {
   DEFAULT_GROUP_ID,
   M02_GROUPS,
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      models,
+      models: models.map(publicCompanyModel).filter(Boolean),
       isDatabaseAvailable
     });
   } catch (error) {
@@ -42,11 +43,11 @@ export async function POST(request: NextRequest) {
     const companyMembership = sessionUser.role === "COMPANY"
       ? await prisma.companyMembership.findFirst({ where: { userId: sessionUser.id }, include: { company: true } })
       : null;
-    if (sessionUser.role === "COMPANY" && !companyMembership) {
+    if (sessionUser.role === "COMPANY" && (!companyMembership || companyMembership.role === "VIEWER")) {
       return NextResponse.json({ success: false, error: "ไม่พบบริษัทที่เชื่อมกับบัญชีนี้" }, { status: 403 });
     }
 
-    await ensureM02Seeded();
+
 
     if (body?.action === "RESET_DEMO") {
       if (sessionUser.role !== "ADMIN") {
@@ -93,30 +94,12 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    const modelCode =
-      String(body.modelCode || "").trim() ||
-      `m02-${slugBase || "custom"}-${Math.floor(100 + Math.random() * 900)}`;
+    const modelCode = `model-${crypto.randomUUID()}`;
 
-    const created = await prisma.companyModelEvaluation.upsert({
-      where: {
-        modelCode_version: {
-          modelCode,
-          version
-        }
-      },
-      update: {
-        companyName,
-        contactName,
-        contactEmail,
-        contactPhone,
-        modelName,
-        hardwareSpec,
-        firmwareVersion,
-        taskEvaluated,
-        workflowStatus
-      },
-      create: {
-        id: modelCode,
+    if (await prisma.companyModelEvaluation.findUnique({ where: { modelCode_version: { modelCode, version } } })) return NextResponse.json({ success: false, error: "Model version already exists" }, { status: 409 });
+    const created = await prisma.companyModelEvaluation.create({
+      data: {
+
         companyId: companyMembership?.companyId,
         modelCode,
         version,
@@ -134,9 +117,9 @@ export async function POST(request: NextRequest) {
         taskEvaluated,
         testConditions: groupMeta.testConditions,
         workflowStatus,
-        safetyStatus: "PASSED",
-        precisionMm: 2.8,
-        speedSec: 4.4,
+        safetyStatus: "PENDING",
+        precisionMm: null,
+        speedSec: null,
         evaluatorName: "ดร. ภาคภูมิ วงศ์วิศิษฏ์ (ผู้ตรวจประเมินตามโปรโตคอล)",
         evaluatorNotes:
           workflowStatus === "SUBMITTED"
