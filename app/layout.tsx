@@ -8,6 +8,7 @@ import MobileHeader from "./components/MobileHeader";
 import MobileTabNav from "./components/MobileTabNav";
 import DataPullFab from "./components/DataPullFab";
 import FirstTimeLoader from "./components/FirstTimeLoader";
+import { GuestBootstrap } from "./components/GuestSession";
 import { getTranslation } from "@/lib/translations";
 import { defaultSeoDescription, getSiteUrl, siteName } from "@/lib/seo";
 import "./globals.css";
@@ -140,6 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <FirstTimeLoader />
+        <GuestBootstrap hasSession={Boolean(session)} isGuest={Boolean(session?.email.endsWith("@guest.humanoidth.local"))} />
         <div className="app-shell">
           <MobileHeader currentLang={lang} />
           <TopNav currentLang={lang} currentRole={currentRole} currentEmail={currentEmail} />

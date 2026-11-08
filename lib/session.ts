@@ -25,12 +25,13 @@ export async function getSessionUser() {
   });
 }
 
-export async function setSessionUser(user: { email: string; role: string }) {
+export async function setSessionUser(user: { email: string; role: string }, options?: { maxAgeSeconds?: number }) {
   const store = await cookies();
   const secure = process.env.NODE_ENV === "production" && process.env.LOCAL_DEMO_MODE !== "1";
-  store.set("user_session", createSessionToken(user.email), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 8 * 3600 });
-  store.set("user_email", user.email, { path: "/", sameSite: "lax", secure });
-  store.set("user_role", user.role, { path: "/", sameSite: "lax", secure });
+  const maxAge = options?.maxAgeSeconds ?? 8 * 3600;
+  store.set("user_session", createSessionToken(user.email, Date.now(), maxAge * 1000), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge });
+  store.set("user_email", user.email, { path: "/", sameSite: "lax", secure, maxAge });
+  store.set("user_role", user.role, { path: "/", sameSite: "lax", secure, maxAge });
   store.delete("demo_account");
   if (user.role === "ADMIN") store.set("admin_session", "true", { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 8 * 3600 });
   else store.delete("admin_session");

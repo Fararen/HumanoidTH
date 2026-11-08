@@ -16,3 +16,11 @@ test("password verification uses salted hashes",()=>{
   assert.equal(verifyPassword("wrong-password",first),false);
   assert.equal(verifyPassword("correct-horse-demo",null),false);
 });
+test("guest sessions remain signed and expire after their configured lifetime", () => {
+  process.env.SESSION_SECRET = "test-secret-32-characters-long-enough-for-tests";
+  const lifetime = 30 * 24 * 3600_000;
+  const token = createSessionToken("guest-123@guest.humanoidth.local", 1000, lifetime);
+  assert.equal(sessionEmail(token, 1000 + lifetime - 1), "guest-123@guest.humanoidth.local");
+  assert.equal(sessionEmail(token, 1000 + lifetime + 1), null);
+  assert.equal(sessionEmail(token.replace(".", "x."), 2000), null);
+});

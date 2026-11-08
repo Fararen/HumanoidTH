@@ -6,7 +6,7 @@ import { RecordCards } from "@/components/platform/RecordView";
 import { LESSONS, type PlatformData } from "@/lib/platform-catalog";
 export const dynamic="force-dynamic";
 export default async function Page() {
-  const user=await getSessionUser(); if (!user) redirect("/sign-in?from=/me");
+  const user=await getSessionUser(); if (!user) redirect("/guest?from=/me");
   const records=await prisma.platformRecord.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, take: 100 });
   const assignments=await prisma.platformRecord.findMany({ where: { assignedToId: user.id }, orderBy: { updatedAt: "desc" }, take: 30 });
   const progress=records.filter(record => record.kind === "PROGRESS"), next=LESSONS.find(lesson => !progress.some(record => (record.data as PlatformData).lessonId === lesson.id));

@@ -5,8 +5,8 @@ function secret() {
   if (!value || value.length < 32) throw new Error("Set SESSION_SECRET to at least 32 random characters");
   return value;
 }
-export function createSessionToken(email: string, now = Date.now()) {
-  const body = Buffer.from(JSON.stringify({ email, expires: now + 8 * 3600_000 })).toString("base64url");
+export function createSessionToken(email: string, now = Date.now(), lifetimeMs = 8 * 3600_000) {
+  const body = Buffer.from(JSON.stringify({ email, expires: now + lifetimeMs })).toString("base64url");
   return `${body}.${createHmac("sha256", secret()).update(body).digest("base64url")}`;
 }
 export function sessionEmail(token: string | undefined, now = Date.now()): string | null {
