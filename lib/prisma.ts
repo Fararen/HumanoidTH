@@ -9,7 +9,14 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is required for Prisma.");
 }
 
-const adapter = new PrismaPg(connectionString);
+// Keep each serverless function's PostgreSQL pool small so concurrent Vercel
+// instances do not exhaust the connection limit on a shared database.
+const adapter = new PrismaPg({
+  connectionString,
+  max: 1,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 5_000
+});
 
 export const prisma =
   globalForPrisma.prisma ??

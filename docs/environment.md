@@ -4,6 +4,10 @@
 
 บัญชีใหม่ต้องมีรหัสผ่าน และ session ที่ลงลายเซ็นต้องใช้ `SESSION_SECRET` อย่างน้อย 32 ตัวอักษรที่คงเดิมข้ามการรีสตาร์ต ตั้งค่านี้ใน environment จริงเมื่อ deploy; `LOCAL_DEMO_MODE=1` ใช้เฉพาะเว็บเดโมที่ bind กับ loopback เพื่อเปิด `/demo` สำหรับเลือกบทบาท
 
+เว็บ sandbox สาธารณะต้อง deploy เป็น Vercel project แยกชื่อ `humanoid-th-demo` โดยตั้ง `PUBLIC_DEMO_MODE=1`, `DEMO_SANDBOX_MODE=1`, `DATABASE_URL` ให้ชี้ไปฐานข้อมูล sandbox แยกต่างหาก และ `SESSION_SECRET` ใหม่ ห้ามใช้ฐานข้อมูล Production จริงกับ demo project เพราะผู้เข้าชมเลือกบทบาททดลองได้ รวมถึง ADMIN ใน sandbox เท่านั้น ถ้าต้องการลิงก์จากเว็บหลัก ให้ตั้ง `NEXT_PUBLIC_DEMO_URL` เป็น URL ของ demo project; หน้าเว็บหลักจะไม่เปิดบัญชีทดลองบนฐานข้อมูล Production
+
+สำหรับเตรียมฐานข้อมูล sandbox ให้ใส่ connection string ลง `.env.demo` แล้วรัน `pnpm seed:demo-sandbox` คำสั่งนี้ใช้ migration และข้อมูลตัวอย่างที่ติดป้าย demo พร้อมตรวจว่าฐานข้อมูล sandbox ไม่ใช่ database เดียวกับ `.env` ถ้ามี `DIRECT_DATABASE_URL` ให้ชี้ไปยัง direct endpoint ของ sandbox เดียวกัน คำสั่งนี้ต้องรันในเครื่องและปฏิเสธการทำงานใน Production environment
+
 กรอกค่าที่ไฟล์ `.env` ในรากโปรเจกต์ ซึ่งถูก Git ignore ไว้ ส่วน `.env.example` เป็นแม่แบบที่แชร์ได้และต้องไม่มี key จริง
 
 | ตัวแปร | ใช้ทำอะไร |
