@@ -5,7 +5,7 @@ Open the PowerPoint for editable slides and presenter notes. The HTML version wo
 ## 1. Competition moves Thai robotics forward
 **0:00–0:20 (20 seconds)**
 
-My goal is to bring Thailand’s robotics companies and learners together. HumanoidTH connects real challenges with people who want to learn and build. Competition gives them a reason to improve, and wellness gives that progress a human purpose.
+My goal is to bring Thailand’s robotics companies and learners together. HumanoidTH connects real challenges with people who want to learn and build. Competition gives teams a clear goal, useful feedback, and a reason to turn their ideas into better robotics projects.
 
 ## 2. Connect companies and learners
 **0:20–0:55 (35 seconds)**
@@ -17,22 +17,22 @@ We are designing the platform around two groups. Companies can bring robots, pra
 
 The central idea is that competition makes progress visible. A company or service provider proposes a challenge. Learners study the skills they need, build a solution, and enter the competition. Evaluation gives them evidence and feedback. They then improve their solution and return for another round. A shared task and clear rules help teams compare their work fairly. We want to reward improvement, clear communication, and useful solutions, so the value of the competition continues after the event ends.
 
-## 4. Wellness gives the challenge a human purpose
+## 4. Turn a company challenge into a robotics project
 **1:40–2:40 (60 seconds)**
 
-Our first proposed wellness challenge is a better welcome at a wellness centre. Imagine a visitor who needs to find an activity room. The robot explains the options: guide me, call a staff member, or cancel. The visitor stays in control. Teams can compete to make this interaction clearer and more useful. We would evaluate task completion, whether people understand the next step, and whether cancellation or staff handoff works. We also want participants to tell us how comfortable they feel. Our current HRI demo records interaction events and outcomes in simulation. It does not prove a health benefit. The next step is testing with real users and a partner venue.
+Here is one project that makes the idea concrete: robot navigation. A company could propose a task such as moving from a starting point to a destination while avoiding obstacles. Our current grid simulator gives beginners a simple place to start. Teams write movement commands, save their program, run it, and inspect the replay. They can see whether the goal was reached, how many commands they used, and where a collision happened. After feedback, they change the program and try again. Those attempts make progress visible. This is the project journey we want to support: from a clear problem to a working solution and evidence of improvement. Partner-led hardware challenges would be a later step.
 
 ## 5. The software pilot connects the journey
 **2:40–3:30 (50 seconds)**
 
-We have built a software pilot to support this journey. Learners can explore robot information, follow lessons, and practise in a saved-program simulator. The HRI demonstration lets a visitor choose guidance, staff help, or cancellation and then inspect the recorded run. The platform also supports competition registration, judging, appeals, and results. Companies have review and versioning workflows, with controls over what becomes public. This screenshot is from the actual HRI application. It demonstrates a working software interaction. Physical robot testing and the wellness outcomes remain the next stage of validation.
+The project already has a working software pilot. Learners can explore robot information, follow lessons, and practise in a saved-program simulator. Their programs and run history give them something concrete to improve and share. Competition workflows support team registration, judging, appeals, and published results. Companies have model profiles, review and versioning workflows, and control over which results become public. This screenshot shows the competition page with demonstration events. Our aim is to bring these features into one shared journey, so a learner can start with a lesson, build a project, and show their progress through a competition.
 
 ## 6. Start with one challenge and grow together
 **3:30–4:00 (30 seconds)**
 
-Our next step is a focused pilot: one company partner, one learning community, and one wellness challenge. We would measure completed solutions, improvement between rounds, and feedback from participants and the venue. We are looking for partners to shape and test that first challenge with us. Companies bring challenges, learners bring ideas, and competition turns those ideas into progress for Thai robotics and better everyday living.
+Our next step is a focused pilot: one company partner, one learning community, and one robotics challenge. We would measure completed solutions, improvement between rounds, and feedback from learners and company mentors. We are looking for partners to shape and test that first challenge with us. Companies bring challenges, learners bring ideas, and competition turns those ideas into working projects and progress for Thai robotics.
 
 ## Evidence and boundaries
-The HRI screenshot was captured from the local working application. The first wellness competition and partners are proposals, not existing partnerships. Current HRI timings describe simulated interactions, not real robot speed or health improvements.
-Project references: Thai_Robotics_Demo_First_Roadmap.md (M01); docs/platform-pilot.md; docs/project-verification.md.
-Rehearse once at a comfortable pace; preserve the total 4-minute timing by shortening examples before cutting the wellness explanation.
+The competition screenshot was captured from the local working application and shows demonstration events. The company partnerships and hardware challenges are proposals. The illustrated grid matches the current grid-v1 simulator; simulation results do not establish real robot performance.
+Project references: Thai_Robotics_Demo_First_Roadmap.md (M06-M11); docs/platform-pilot.md; docs/project-verification.md.
+Rehearse once at a comfortable pace; preserve the total 4-minute timing by shortening examples before cutting the project example.
