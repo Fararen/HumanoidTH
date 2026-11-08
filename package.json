@@ -23,6 +23,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:demo-sandbox": "tsx scripts/seed-demo-sandbox.ts",
     "ingest:openalex": "tsx scripts/ingest.ts openalex",
     "ingest:github": "tsx scripts/ingest.ts github",
     "ingest:gdelt": "tsx scripts/ingest.ts gdelt",
