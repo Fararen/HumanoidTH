@@ -29,4 +29,5 @@ for (const sample of samples) {
 await prisma.communityPost.upsert({ where: { id: "pilot-welcome" }, update: {}, create: { id: "pilot-welcome", slug: "pilot-welcome", authorId: "local-moderator", authorName: "Demo moderator", title: "ข้อมูลเดโม · เริ่มเรียนและทดลองหุ่นยนต์", content: "เริ่มจากบทเรียนภาษาไทย เปิด Simulator แล้วบันทึกโปรแกรมแรก ทดลองสมัครทีม หรือส่งคำขอประเมินในสภาพแวดล้อมเดโมนี้", type: "DISCUSSION", tags: ["demo", "beginner"] } });
 console.log(`${label} Atlas records and labeled demo roles ready.`);
 await prisma.$disconnect();
+}
 
