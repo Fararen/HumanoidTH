@@ -117,6 +117,11 @@ text(s,77,622,1450,54,'Measure: completed solutions • improvement • particip
 text(s,76,722,1455,74,'Help us shape the first pilot challenge.',45,GREEN,True)
 
 assert len(slides)==6 and sum(s['seconds'] for s in slides)==240
+thai_notes=json.loads((OUT/'speaker_notes_th.json').read_text(encoding='utf-8'))
+assert len(thai_notes)==len(slides)
+for spec,thai in zip(slides,thai_notes):
+    assert spec['seconds']==thai['seconds']
+    spec['notes_th']=thai['notes']
 prs=Presentation();prs.slide_width=Inches(16);prs.slide_height=Inches(9)
 def rgb(c):return RGBColor.from_string(c)
 def emu(px):return Inches(px/100)
@@ -141,7 +146,7 @@ for spec in slides:
             typ=MSO_SHAPE.OVAL if e['kind']=='circle' else {'right':MSO_SHAPE.RIGHT_ARROW,'left':MSO_SHAPE.LEFT_ARROW,'up':MSO_SHAPE.UP_ARROW,'down':MSO_SHAPE.DOWN_ARROW}[e['direction']] if e['kind']=='arrow' else MSO_SHAPE.ROUNDED_RECTANGLE if e.get('r') else MSO_SHAPE.RECTANGLE
             shape=slide.shapes.add_shape(typ,x,y,w,h);shape.fill.solid();shape.fill.fore_color.rgb=rgb(e['c']);shape.line.fill.background()
             if typ==MSO_SHAPE.ROUNDED_RECTANGLE:shape.adjustments[0]=.08
-    slide.notes_slide.notes_text_frame.text=f"SLIDE {len(prs.slides)} — {spec['seconds']} seconds\n\n{spec['notes']}"
+    slide.notes_slide.notes_text_frame.text=f"สไลด์ {len(prs.slides)} — {spec['seconds']} วินาที\n\n{spec['notes_th']}"
 prs.core_properties.title='HumanoidTH — Competition for Progress'
 prs.core_properties.subject='Four-minute presentation: Thai robotics, companies, learners, practical projects and competition'
 prs.core_properties.author='HumanoidTH'
@@ -167,5 +172,15 @@ for i,s in enumerate(slides):
     end=elapsed+s['seconds'];notes += [f'## {i+1}. {s["title"]}',f'**{elapsed//60}:{elapsed%60:02d}–{end//60}:{end%60:02d} ({s["seconds"]} seconds)**','',s['notes'],''];elapsed=end
 notes += ['## Evidence and boundaries','The competition screenshot was captured from the local working application and shows demonstration events. The company partnerships and hardware challenges are proposals. The illustrated grid matches the current grid-v1 simulator; simulation results do not establish real robot performance.','Project references: Thai_Robotics_Demo_First_Roadmap.md (M06-M11); docs/platform-pilot.md; docs/project-verification.md.','Rehearse once at a comfortable pace; preserve the total 4-minute timing by shortening examples before cutting the project example.']
 (OUT/'Speaker-notes.md').write_text('\n'.join(notes),encoding='utf-8')
+thai_doc=['# HumanoidTH — บทพูดประกอบสไลด์ภาษาไทย','',
+          '6 สไลด์ · เวลารวม 4 นาที · บทพูดภาษาไทยอยู่ใน Presenter Notes ของ PowerPoint ด้วย',
+          'ช่วงเวลาเป็นแนวทางสำหรับซ้อมพูด ควรจับเวลาจริงหนึ่งรอบและปรับจังหวะให้เหมาะกับผู้พูด','']
+elapsed=0
+for i,thai in enumerate(thai_notes):
+    end=elapsed+thai['seconds']
+    thai_doc += [f"## สไลด์ {i+1}: {thai['title']}",
+                 f"**{elapsed//60}:{elapsed%60:02d}–{end//60}:{end%60:02d} ({thai['seconds']} วินาที)**",'',thai['notes'],'']
+    elapsed=end
+(OUT/'Speaker-notes-TH.md').write_text('\n'.join(thai_doc),encoding='utf-8')
 (OUT/'layout.json').write_text(json.dumps(slides,ensure_ascii=False,indent=2),encoding='utf-8')
 print(f'Created {len(slides)} slides, {sum(s["seconds"] for s in slides)} seconds; {sum(len(s["notes"].split()) for s in slides)} spoken words.')
