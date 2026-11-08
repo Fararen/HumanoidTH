@@ -152,7 +152,7 @@ export default function OpsEvaluatorClient({ initialModel }: OpsEvaluatorClientP
       </section>
 
       <div className={styles.twoColGrid}>
-        {/* Left: Sample Protocol Report & Version Verification */}
+        {/* Left: Pilot Protocol Report & Version Verification */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div>

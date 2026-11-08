@@ -38,7 +38,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     signedOut: "สมัครสมาชิกหรือเข้าสู่บัญชีก่อน เพื่อผูกสิทธิ์กับบัญชีของคุณ",
     register: "สมัครสมาชิก", profile: "ไปที่โปรไฟล์",
     checkout: "ระบบชำระเงินยังไม่ได้เชื่อมต่อ กรุณาติดต่อผู้ดูแล Atlas เพื่อเปิดใช้ subscription",
-    mock: "ทดลอง Atlas Plus ด้วยบัญชีตัวอย่าง", back: "กลับหน้าหลัก"
+    demo: "ทดลอง Atlas Plus ด้วยบัญชีตัวอย่าง", back: "กลับหน้าหลัก"
   } : {
     kicker: "ATLAS SUBSCRIPTION",
     title: "Choose a plan",
@@ -54,7 +54,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     signedOut: "Create or open an account first so access can be attached to your account.",
     register: "Sign up", profile: "Open profile",
     checkout: "Live subscription checkout is not connected yet. Contact the Atlas administrator to activate a subscription.",
-    mock: "Try Atlas Plus with the mock subscriber", back: "Back to Atlas"
+    demo: "Try Atlas Plus with the demo subscriber", back: "Back to Atlas"
   };
 
   return <main className={styles.page}>
@@ -75,7 +75,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         <div className={styles.price}>{copy.plusPrice}<small>{copy.plusPeriod}</small></div>
         <ul>{copy.plusFeatures.map((item) => <li key={item}><Check size={15} aria-hidden="true" />{item}</li>)}</ul>
         <button className={styles.disabledButton} type="button" disabled>{copy.checkoutButton}</button>
-        {process.env.NODE_ENV !== "production" && <form action={loginAsSubscriber}><button className={styles.mockButton} type="submit"><BarChart3 size={16} aria-hidden="true" />{copy.mock}</button></form>}
+        {process.env.NODE_ENV !== "production" && <form action={loginAsSubscriber}><button className={styles.mockButton} type="submit"><BarChart3 size={16} aria-hidden="true" />{copy.demo}</button></form>}
       </article>
       <article className={styles.planCard}>
         <div className={styles.planIcon}><Building2 size={19} aria-hidden="true" /></div>

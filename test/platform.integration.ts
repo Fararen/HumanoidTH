@@ -8,8 +8,30 @@ if (process.env.LOCAL_DEMO_MODE !== "1" || url.hostname !== "127.0.0.1" || url.p
 const {prisma}=await import("../lib/prisma");
 const {createRecord,updateRecord,getRecord,listRecords,processNextRun}=await import("../lib/platform-store");
 import { GRID_TASK, type PlatformData, type PlatformKind, type PlatformUser } from "../lib/platform-catalog";
+import { loadGraphRecordsFromPrisma } from "../lib/network-graph";
 const actor=(role:string):PlatformUser=>({id:`local-${role.toLowerCase()}`,email:`${role.toLowerCase()}@demo.humanoidth.local`,role});
 const owner=actor("USER"),lab=actor("LAB"),admin=actor("ADMIN"),organizer=actor("ORGANIZER"),judge=actor("JUDGE"),moderator=actor("MODERATOR");
+test("public network excludes private Atlas records and submission review notes", async () => {
+  const id = randomUUID();
+  const submissionId = `privacy-submission-${id}`, inventoryId = `privacy-inventory-${id}`, contributionId = `privacy-contribution-${id}`;
+  try {
+    await prisma.submittedData.create({ data: { id: submissionId, submissionType: "source_url", title: "Private pending submission", notes: "PRIVATE-INTERNAL-NOTES", reviewNotes: "PRIVATE-REVIEW-NOTES" } });
+    await prisma.ownedInventory.create({ data: { id: inventoryId, displayName: "Private inventory", ownershipStatus: "owned", visibility: "private" } });
+    await prisma.contribution.create({ data: { id: contributionId, title: "Private contribution", contributionType: "research", visibility: "private" } });
+    const privateIds = new Set([submissionId, inventoryId, contributionId]);
+    assert.equal((await loadGraphRecordsFromPrisma()).some(record => privateIds.has(record.id)), false);
+    await prisma.submittedData.update({ where: { id: submissionId }, data: { status: "APPROVED" } });
+    const published = (await loadGraphRecordsFromPrisma()).find(record => record.id === submissionId);
+    assert.ok(published);
+    assert.equal(published.description, null);
+    assert.equal(published.evidence_excerpt, null);
+    assert.equal(JSON.stringify(published).includes("PRIVATE-"), false);
+  } finally {
+    await prisma.submittedData.deleteMany({ where: { id: submissionId } });
+    await prisma.ownedInventory.deleteMany({ where: { id: inventoryId } });
+    await prisma.contribution.deleteMany({ where: { id: contributionId } });
+  }
+});
 test("persisted workflows enforce ownership and reach reports, rankings, competition results and moderation",async()=>{
   const ids:string[]=[], posts:string[]=[];
   async function create(kind:PlatformKind,data:PlatformData,user=owner,parentId?:string) {

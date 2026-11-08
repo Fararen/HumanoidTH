@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasAdminApiAccess } from "@/lib/admin-api-access";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const table = searchParams.get("table") || "sources";
+  if (!["sources", "robots", "owned_inventory", "contributions", "submissions", "perspective_annotations", "pull_jobs"].includes(table)) {
+    return NextResponse.json({ error: "Unknown export table" }, { status: 400 });
+  }
+  if (!(await hasAdminApiAccess(req))) {
+    return NextResponse.json({ error: "Administrator access is required" }, { status: 403 });
+  }
 
   let data: any[] = [];
 
   switch (table) {
     case "robots":
       data = await prisma.robotModel.findMany();
+      break;
+    case "owned_inventory":
+      data = await prisma.ownedInventory.findMany();
       break;
     case "contributions":
       data = await prisma.contribution.findMany();
@@ -45,6 +55,7 @@ export async function GET(req: NextRequest) {
   const escapeCSVValue = (val: any) => {
     if (val === null || val === undefined) return "";
     let str = typeof val === "object" ? JSON.stringify(val) : String(val);
+    if (/^[\s]*[=+@-]/.test(str) || /^[\t\r\n]/.test(str)) str = `'${str}`;
     // Escape double quotes by doubling them
     str = str.replace(/"/g, '""');
     // Wrap in double quotes if it contains commas, quotes, or newlines

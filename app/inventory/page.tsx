@@ -1,3 +1,4 @@
+import { getSessionUser } from "@/lib/session";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -36,7 +37,8 @@ export const metadata: Metadata = {
 
 export default async function InventoryPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const isPublic = params.mode === "public";
+  const isAdmin = (await getSessionUser())?.role === "ADMIN";
+  const isPublic = !isAdmin || params.mode === "public";
   
   const cookieStore = await cookies();
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
@@ -45,6 +47,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Se
   let inventory: any[] = [];
   try {
     inventory = await prisma.ownedInventory.findMany({
+      where: isPublic ? { visibility: "public" } : {},
       include: { robotModel: true },
       orderBy: { updatedAt: "desc" }
     });
@@ -107,12 +110,12 @@ export default async function InventoryPage({ searchParams }: { searchParams: Se
           <p className="muted">{t.inventoryDesc}</p>
         </div>
         <div className="toolbar">
-          <Link 
+          {isAdmin && <Link
             className={`button ${!isPublic ? "primary" : ""}`} 
             href="/inventory?mode=operator"
           >
             {localT.opMode}
-          </Link>
+          </Link>}
           <Link 
             className={`button ${isPublic ? "primary" : ""}`} 
             href="/inventory?mode=public"
@@ -153,8 +156,8 @@ export default async function InventoryPage({ searchParams }: { searchParams: Se
               let accs: string[] = [];
               let docs: string[] = [];
               try {
-                accs = JSON.parse(item.accessories as string);
-                docs = JSON.parse(item.documentationLinks as string);
+                accs = Array.isArray(item.accessories) ? item.accessories : JSON.parse(item.accessories as string);
+                docs = isPublic ? [] : Array.isArray(item.documentationLinks) ? item.documentationLinks : JSON.parse(item.documentationLinks as string);
               } catch (e) {
                 // Ignore parse failures
               }
@@ -180,7 +183,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Se
                       {item.visibility}
                     </span>
                   </td>
-                  <td>{item.custodian ?? "Unassigned"}</td>
+                  <td>{isPublic ? localT.masked : item.custodian ?? "Unassigned"}</td>
                   <td>
                     <span className={`badge ${item.conditionStatus === "excellent" || item.conditionStatus === "good" ? "ok" : "warn"}`}>
                       {item.conditionStatus ?? "unknown"}

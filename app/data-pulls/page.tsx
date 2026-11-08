@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslation } from "@/lib/translations";
+import { getSessionUser } from "@/lib/session";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DataPullsPage() {
+  if ((await getSessionUser())?.role !== "ADMIN") redirect("/sign-in?from=/data-pulls");
   const cookieStore = await cookies();
   const lang = (cookieStore.get("lang")?.value || "en") as "en" | "th";
   const t = getTranslation(lang);

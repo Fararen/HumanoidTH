@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import PostDetailClient from "./PostDetailClient";
-import { MOCK_POSTS, MOCK_COMMENTS } from "../mockData";
 import { prisma } from "@/lib/prisma";
 import { CommunityPost, PostComment } from "../types";
 
@@ -27,13 +26,7 @@ export async function generateMetadata({
     }
   } catch {}
 
-  const mock = MOCK_POSTS.find((p) => p.id === id || p.slug === id);
-  if (!mock) return { title: "Discussion | HumanoidTH Community" };
-
-  return {
-    title: `${mock.title} | HumanoidTH Community`,
-    description: mock.content.substring(0, 160)
-  };
+  return { title: "Discussion | HumanoidTH Community" };
 }
 
 export default async function PostDetailPage({
@@ -118,7 +111,7 @@ export default async function PostDetailPage({
       comments = rootComments;
     }
   } catch (err) {
-    console.warn("Could not query post from DB, using fallback:", err);
+    console.warn("Could not load community post:", err);
   }
 
   if (!post) notFound();

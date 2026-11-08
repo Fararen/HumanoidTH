@@ -1,3 +1,5 @@
+import { getSessionUser } from "@/lib/session";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +26,7 @@ const tableOptions = [
 ] as const;
 
 export default async function DatabasePage({ searchParams }: { searchParams: SearchParams }) {
+  if ((await getSessionUser())?.role !== "ADMIN") redirect("/sign-in?from=/database");
   const params = await searchParams;
   const table = tableOptions.some(t => t.value === params.table) ? params.table! : "sources";
   const q = params.q ?? "";

@@ -10,6 +10,27 @@ async function login(page:Page,role:string) {
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>sessionStorage.setItem("th_atlas_loaded_before","true"));
 });
+test("legacy endpoints protect private exports, ingestion and image uploads", async ({ page, request }) => {
+  const headers = { cookie: "user_role=ADMIN; admin_session=true; user_email=admin@demo.humanoidth.local" };
+  for (const table of ["sources", "owned_inventory", "submissions", "pull_jobs"]) {
+    expect((await request.get(`/api/export?table=${table}`, { headers })).status()).toBe(403);
+  }
+  expect((await request.post("/api/ingest/openalex", { headers, data: { query: "robotics" } })).status()).toBe(403);
+  expect((await request.post("/api/upload", { headers })).status()).toBe(401);
+  await page.goto("/database?table=submissions");
+  await expect(page).toHaveURL(/\/sign-in\?/);
+  await page.goto("/inventory?mode=operator");
+  await expect(page.getByRole("link", { name: "Operator Mode (Private)", exact: true })).toHaveCount(0);
+  await login(page, "USER");
+  expect((await page.request.get("/api/export?table=submissions")).status()).toBe(403);
+  expect((await page.request.post("/api/upload", { multipart: { file: { name: "pretend.png", mimeType: "image/png", buffer: Buffer.from("<html><script>alert(1)</script></html>") } } })).status()).toBe(415);
+  await login(page, "ADMIN");
+  await page.goto("/database?table=submissions");
+  await expect(page).toHaveURL(/\/database\?table=submissions/);
+  expect((await page.request.get("/api/export?table=submissions")).status()).toBe(200);
+  // An empty query proves authorization succeeds without making an external ingestion request.
+  expect((await page.request.post("/api/ingest/openalex", { data: { query: "" } })).status()).toBe(400);
+});
 test("full site supports saved simulation, lesson progress, account drafts, references and moderation",async({page,request})=>{
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
   await login(page,"USER");

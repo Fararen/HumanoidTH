@@ -1,6 +1,7 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import CommunityClient from "./CommunityClient";
-import { MOCK_POSTS, MOCK_TOPICS } from "./mockData";
+import { MOCK_TOPICS } from "./mockData";
 import { prisma } from "@/lib/prisma";
 import { CommunityPost } from "./types";
 
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 
 export default async function CommunityPage() {
   let posts: CommunityPost[] = [];
+  let unavailable = false;
 
   try {
     const dbPosts = await prisma.communityPost.findMany({
@@ -66,12 +68,14 @@ export default async function CommunityPage() {
       });
     }
   } catch (err) {
-    console.warn("Could not load community posts from PostgreSQL, using fallback:", err);
+    unavailable = true;
+    console.warn("Could not load community posts from PostgreSQL:", err);
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <nav className="platform-links"><a href="/community/drafts">ร่างในบัญชี · Account drafts</a><a href="/community/drafts/new">เขียนโพสต์ · Write post</a></nav><CommunityClient initialPosts={posts} topics={MOCK_TOPICS} />
+      {unavailable && <p role="alert">Community posts are temporarily unavailable. Please retry.</p>}
+      <nav className="platform-links"><Link href="/community/drafts">ร่างในบัญชี · Account drafts</Link><Link href="/community/drafts/new">เขียนโพสต์ · Write post</Link></nav><CommunityClient initialPosts={posts} topics={MOCK_TOPICS} />
     </div>
   );
 }

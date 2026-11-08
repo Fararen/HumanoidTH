@@ -104,7 +104,7 @@ export default async function ProfilePage({
     accountKicker: "HUMANOIDTH ACCOUNT", contribute: "Contribute to the atlas", databaseOffline: "Account data is temporarily unavailable. Please refresh in a moment.",
     workspaceKicker: "YOUR ATLAS WORKSPACE", welcomeTitle: "Keep your contributions in one place.", welcomeLead: "Sign in with your email to follow submissions, check review progress, and build your public contribution history.",
     trackStatus: "Track submission status", keepEvidence: "Keep a record of your evidence", connectCommunity: "Connect your work to the community", simpleAccount: "A simple account for participating in the public atlas",
-    welcome: "WELCOME", signInTitle: "Sign in or create an account", signInLead: "Use an email address you can access.", tryMock: "Try a mock account",
+    welcome: "WELCOME", signInTitle: "Sign in or create an account", signInLead: "Use an email address you can access.", tryMock: "Try a demo account",
     individual: "Individual", individualDemo: "Learn, simulate, and compete", company: "Company", companyDemo: "Submit models and view evaluations", admin: "Administrator", adminDemo: "Review accounts and operations", subscriber: "Dashboard subscriber", subscriberDemo: "Try a subscription and open dashboards",
     signedIn: "SIGNED IN", signOut: "Sign out", contributionSummary: "Contribution summary", submitted: "Submitted", recordsShared: "records shared", approved: "Approved", accepted: "accepted into Atlas", inReview: "In review", awaitingReview: "awaiting review",
     companyWorkspace: "COMPANY WORKSPACE", companyAccount: "Company account", verified: "Verified organization", awaitingVerification: "Company profile awaiting verification", openCompanyPortal: "Open Company Portal",

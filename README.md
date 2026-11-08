@@ -2,6 +2,8 @@
 
 The Thai Robotics roadmap pilot is now available in the full application: learning, a saved-program grid simulator, physical evaluation workflows, company review/versioning, consent-based benchmarks, competitions, community moderation and a personal workspace. See [the pilot guide](docs/platform-pilot.md) for roles, tested routes and remaining real-world acceptance work.
 
+See [the project verification report](docs/project-verification.md) for corrected issues, test results and open dependency advisories.
+
 Run `pnpm demo`, then open **http://127.0.0.1:3000**. The local setup preserves `.env`, creates an isolated persistent demo database and provides role selection at `/demo`. On the configured Windows workstation, run `.\scratch\tooling\node.exe scripts/dev-platform.mjs` if Node/pnpm are not on PATH.
 
 <p align="center">
@@ -277,7 +279,7 @@ GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 > [!IMPORTANT]
-> - 🔒 Production endpoints `/admin/*`, `/data-pulls`, and `/api/ingest/*` are protected with Basic Auth using `ADMIN_BASIC_USER` and `ADMIN_BASIC_PASSWORD`. Keep credentials safe!
+> - 🔒 Administrator pages and actions require a signed administrator session. Ingestion and raw database exports also accept explicitly configured Basic credentials for scripts (`ADMIN_BASIC_USER` and `ADMIN_BASIC_PASSWORD`). There are no built-in credentials.
 > - ⚙️ The Vercel build command is configured to run `pnpm vercel-build` which automatically handles schema generation. Do **not** run `db:push` inside the Vercel build phase.
 
 ---

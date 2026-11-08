@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSessionUser, setSessionUser } from "@/lib/session";
 import { passwordHash } from "@/lib/auth-token";
+import { verifySubscriptionAdmin } from "@/lib/subscription-admin";
 import type { SourceType } from "../generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { runAdapter } from "@/lib/ingest/adapters";
@@ -39,9 +40,7 @@ function readOptionalDateField(formData: FormData, key: string) {
 }
 
 async function requireAdminUser() {
-  const currentEmail = (await getSessionUser())?.email;
-  if (!currentEmail) throw new Error("Administrator access is required.");
-  const user = await prisma.user.findUnique({ where: { email: currentEmail }, select: { id: true, email: true, name: true, role: true } });
+  const user = await getSessionUser();
   if (user?.role !== "ADMIN") throw new Error("Administrator access is required.");
   return user;
 }
@@ -239,6 +238,7 @@ export async function updateSubmissionStatus(id: string, formData: FormData) {
 }
 
 export async function runDataPull(formData: FormData) {
+  await requireAdminUser();
   const adapter = String(formData.get("adapter") ?? "OPENALEX") as SourceType;
   const query = String(formData.get("query") ?? "").trim();
   const limit = Number(formData.get("limit") ?? 10);
@@ -285,6 +285,7 @@ export async function loginAsUser(email: string, role: string, companyName?: str
 
   const accountRole = role === "ADMIN" ? "ADMIN" : role === "COMPANY" ? "COMPANY" : "USER";
   const cookieStore = await cookies();
+  cookieStore.delete("user_session");
   cookieStore.set("user_email", email, { path: "/" });
   cookieStore.set("user_role", accountRole, { path: "/" });
   cookieStore.set("demo_account", accountRole, { path: "/" });
@@ -310,6 +311,7 @@ export async function loginAsSubscriber() {
   }
 
   const cookieStore = await cookies();
+  cookieStore.delete("user_session");
   cookieStore.set("user_email", "subscriber.demo@humanoidth.local", { path: "/" });
   cookieStore.set("user_role", "USER", { path: "/" });
   cookieStore.set("demo_account", "USER", { path: "/" });
@@ -358,23 +360,16 @@ export async function logoutUser() {
 
 export async function adminLoginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
 
-  const expectedUser = process.env.ADMIN_BASIC_USER || "creativelab.co.th@gmail.com";
-  const expectedPassword = process.env.ADMIN_BASIC_PASSWORD || "I@M_Cr3LabTH_F4M";
-
-  if (email === expectedUser && password === expectedPassword) {
+  if (verifySubscriptionAdmin(email, password)) {
     const user = await prisma.user.upsert({
       where: { email },
       update: { role: "ADMIN" },
       create: { email, name: "Admin", role: "ADMIN" }
     });
 
-    const cookieStore = await cookies();
     await setSessionUser(user);
-    cookieStore.set("user_email", user.email, { path: "/" });
-    cookieStore.set("user_role", "ADMIN", { path: "/" });
-    cookieStore.set("admin_session", "true", { path: "/" });
     
     revalidateAtlasCms();
     redirect("/admin?collection=submitted-data");
@@ -390,6 +385,7 @@ export async function setLanguage(lang: "en" | "th") {
 }
 
 export async function upsertSourceRecordAction(formData: FormData) {
+  await requireAdminUser();
   const id = readTextField(formData, "id");
   const url = readOptionalUrlField(formData, "url");
   const sourceType = readTextField(formData, "sourceType") as any;
@@ -429,6 +425,7 @@ export async function upsertSourceRecordAction(formData: FormData) {
 }
 
 export async function upsertRobotModelAction(formData: FormData) {
+  await requireAdminUser();
   const id = readTextField(formData, "id");
   const canonicalName = readTextField(formData, "canonicalName");
 
@@ -468,6 +465,7 @@ export async function upsertRobotModelAction(formData: FormData) {
 }
 
 export async function upsertContributionAction(formData: FormData) {
+  await requireAdminUser();
   const id = readTextField(formData, "id");
   const title = readTextField(formData, "title");
   const contributionType = readTextField(formData, "contributionType");

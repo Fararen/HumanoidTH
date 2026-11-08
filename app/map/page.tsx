@@ -1,3 +1,4 @@
+import { getSessionUser } from "@/lib/session";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { Sparkles } from "lucide-react";
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
     thHeaderRecords: "Records",
     thHeaderSummary: "Ecosystem Summary",
     itemsPrefix: "Items:",
-    emptyState: "No ecosystem clusters analyzed yet. Click the button above to run AI analysis."
+    emptyState: "No saved location groups are available. An administrator can configure and run location analysis."
   },
   th: {
     clustersStat: "คลัสเตอร์ระบบนิเวศ",
@@ -92,7 +93,7 @@ export default async function MapPage() {
 
   // 3. Count unique geolocated organizations
   const uniqueOrgs = new Set(clusters.map((c) => c.organization));
-  const canRefreshLocationGroups = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "mock_key");
+  const canRefreshLocationGroups = (await getSessionUser())?.role === "ADMIN" && Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "mock_key");
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
   return (

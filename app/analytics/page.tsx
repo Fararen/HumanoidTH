@@ -87,6 +87,7 @@ export const metadata: Metadata = {
         take: 5000
       }),
       prisma.contribution.findMany({
+        where: { visibility: "public" },
         select: {
           title: true,
           contributionType: true,
@@ -112,12 +113,12 @@ export const metadata: Metadata = {
         take: 5000
       }),
       prisma.submittedData.findMany({
+        where: { status: "APPROVED" },
         select: {
           submissionType: true,
           status: true,
           createdAt: true,
           title: true,
-          submitterName: true
         },
         orderBy: { createdAt: "desc" },
         take: 5000

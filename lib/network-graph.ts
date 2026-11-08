@@ -303,11 +303,11 @@ export async function loadGraphRecordsFromPrisma(): Promise<AtlasRecord[]> {
   const records: AtlasRecord[] = [];
   const [robots, inventory, contributions, sources, perspectives, submissions, triplets] = await Promise.all([
     prisma.robotModel.findMany({ take: 700, orderBy: { updatedAt: "desc" } }),
-    prisma.ownedInventory.findMany({ take: 500, include: { robotModel: true }, orderBy: { updatedAt: "desc" } }),
-    prisma.contribution.findMany({ take: 700, include: { relatedRobotModel: true }, orderBy: { updatedAt: "desc" } }),
+    prisma.ownedInventory.findMany({ where: { visibility: "public" }, take: 500, include: { robotModel: true }, orderBy: { updatedAt: "desc" } }),
+    prisma.contribution.findMany({ where: { visibility: "public" }, take: 700, include: { relatedRobotModel: true }, orderBy: { updatedAt: "desc" } }),
     prisma.sourceRecord.findMany({ take: 1200, orderBy: [{ relevanceConfidence: "desc" }, { updatedAt: "desc" }] }),
     prisma.perspectiveAnnotation.findMany({ take: 800, include: { source: true }, orderBy: { createdAt: "desc" } }),
-    prisma.submittedData.findMany({ take: 500, orderBy: { updatedAt: "desc" } }),
+    prisma.submittedData.findMany({ where: { status: "APPROVED" }, take: 500, orderBy: { updatedAt: "desc" } }),
     prisma.triplet.findMany({ take: 1400, include: { source: true }, orderBy: { confidence: "desc" } })
   ]);
 
@@ -463,7 +463,7 @@ export async function loadGraphRecordsFromPrisma(): Promise<AtlasRecord[]> {
       category: "submission_record",
       title: item.title,
       canonical_name: item.title,
-      description: item.notes,
+      description: null,
       organization: null,
       country: null,
       robot_type: null,
@@ -480,7 +480,7 @@ export async function loadGraphRecordsFromPrisma(): Promise<AtlasRecord[]> {
       published_at: item.createdAt.toISOString(),
       author: null,
       confidence: item.status === "APPROVED" ? 0.8 : 0.55,
-      evidence_excerpt: item.reviewNotes ?? item.notes,
+      evidence_excerpt: null,
       notes: item.status,
       data_origin: "database"
     });

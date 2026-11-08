@@ -51,15 +51,16 @@ export function CreateForm({ kind, fields, title = "", parentId, defaults = {}, 
   </form>;
 }
 export function ActionForm({ record, action, label, fields = [] }: { record: PlatformItem; action: string; label: string; fields?: Field[] }) {
-  const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const router = useRouter();
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return; setBusy(true); setError("");
     try {
       const response = await fetch(`/api/platform/${record.kind}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: record.id, revision: record.revision, action, data: dataFromForm(event.currentTarget, fields) }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "Save failed");
-      router.refresh();
-    } catch (error) { setError(error instanceof Error ? error.message : "Save failed; retry"); }
-    finally { setBusy(false); }
+      // A queued-run refresh can still be rendering an older revision. Navigate again
+      // after the committed mutation so that older React server responses cannot win.
+      window.location.reload();
+    } catch (error) { setError(error instanceof Error ? error.message : "Save failed; retry"); setBusy(false); }
   }
   return <form onSubmit={submit} className="platform-form"><h3>{label}</h3><Fields fields={fields} values={record.data} />{error && <p role="alert">{error}</p>}<button disabled={busy}>{busy ? "กำลังบันทึก…" : label}</button></form>;
 }

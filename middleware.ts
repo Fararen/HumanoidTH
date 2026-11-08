@@ -1,56 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedPrefixes = ["/admin", "/data-pulls"];
-const protectedApiPrefixes = ["/api/ingest", "/api/export"];
-
-function isProtectedPath(pathname: string) {
-  return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-}
-
-function isProtectedApiPath(pathname: string) {
-  return protectedApiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-}
-
+// This is an early navigation hint only. Signed-session role checks in the
+// admin layout, data-pulls page and each server action enforce authorization.
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // 1. Protect Web Pages (Redirect to actual UI login page)
-  if (isProtectedPath(pathname)) {
-    const adminSession = request.cookies.get("admin_session")?.value;
-    if (adminSession !== "true") {
-      const loginUrl = new URL("/admin-login", request.url);
-      loginUrl.searchParams.set("from", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-    return NextResponse.next();
+  if (!request.cookies.get("user_session")?.value) {
+    const loginUrl = new URL("/admin-login", request.url);
+    loginUrl.searchParams.set("from", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
-
-  // 2. Protect API Routes (Return 401 JSON without WWW-Authenticate header to prevent browser popups)
-  if (isProtectedApiPath(pathname)) {
-    const expectedUser = process.env.ADMIN_BASIC_USER || "creativelab.co.th@gmail.com";
-    const expectedPassword = process.env.ADMIN_BASIC_PASSWORD || "I@M_Cr3LabTH_F4M";
-
-    const header = request.headers.get("authorization");
-    if (header?.startsWith("Basic ")) {
-      try {
-        const [user, password] = atob(header.slice("Basic ".length)).split(":");
-        if (user === expectedUser && password === expectedPassword) {
-          return NextResponse.next();
-        }
-      } catch {
-        // Fall through to 401
-      }
-    }
-
-    return new NextResponse(JSON.stringify({ error: "Unauthorized. Admin credentials required." }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: ["/admin/:path*", "/data-pulls/:path*", "/api/ingest/:path*", "/api/export"]
-};
+// API handlers authenticate signed sessions or explicitly configured Basic
+// credentials themselves, so a browser login also works for downloads.
+export const config = { matcher: ["/admin/:path*", "/data-pulls/:path*"] };

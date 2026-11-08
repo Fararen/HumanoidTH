@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import type { SourceType } from "../../../../generated/prisma";
 import { runAdapter } from "@/lib/ingest/adapters";
+import { hasAdminApiAccess } from "@/lib/admin-api-access";
 
 type Params = Promise<{ adapter: string }>;
 
 export async function POST(request: Request, { params }: { params: Params }) {
+  if (!(await hasAdminApiAccess(request))) {
+    return NextResponse.json({ error: "Administrator access is required" }, { status: 403 });
+  }
   const { adapter: adapterParam } = await params;
   const body = await request.json().catch(() => ({}));
   const adapter = adapterParam.toUpperCase() as SourceType;

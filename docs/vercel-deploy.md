@@ -31,11 +31,4 @@ Do not run `db:push` automatically during every Vercel build. Builds should gene
 
 ## Protected Routes
 
-In production, these routes require Basic Auth:
-
-- `/admin/*`
-- `/data-pulls`
-- `/api/ingest/*`
-- `/api/export`
-
-If `ADMIN_BASIC_PASSWORD` is left as `change-this-before-deploy`, protected routes return `503`.
+Administrator pages (`/admin/*`, `/data-pulls`) and mutations require a signed administrator session. `/api/ingest/*` and all `/api/export` tables also accept explicitly configured Basic credentials for scripts. The raw `/database` browser also requires a signed administrator; public discovery pages remain readable. Missing environment credentials never enable Basic access; there is no built-in administrator password.
