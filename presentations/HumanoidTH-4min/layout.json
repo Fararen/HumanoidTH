@@ -45,7 +45,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "01 / 06",
+        "t": "01 / 07",
         "size": 20,
         "c": "C5EF83",
         "bold": true,
@@ -259,7 +259,7 @@
   },
   {
     "title": "Connect companies and learners",
-    "seconds": 35,
+    "seconds": 30,
     "notes": "We are designing the platform around two groups. Companies can bring robots, practical problems, and mentors. In return, they can discover ideas and people with useful skills. Learners bring curiosity and teamwork, but they need a clear starting point and a way to show what they can do. HumanoidTH connects these groups through shared challenges. Universities, labs, and service providers can support the journey. These are the needs and partnerships we want to validate in our first pilot.",
     "bg": "F5F3EB",
     "els": [
@@ -303,7 +303,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "02 / 06",
+        "t": "02 / 07",
         "size": 20,
         "c": "173E32",
         "bold": true,
@@ -507,11 +507,11 @@
         "align": "left"
       }
     ],
-    "notes_th": "แพลตฟอร์มนี้ออกแบบสำหรับคนสองกลุ่มหลัก กลุ่มแรกคือบริษัท ที่สามารถนำโจทย์ เทคโนโลยี และผู้เชี่ยวชาญเข้ามา พร้อมกับได้เห็นแนวคิดใหม่และคนที่มีทักษะจากผลงานจริง อีกกลุ่มคือผู้เรียน ที่มีความสนใจและอยากลงมือทำ แต่ต้องการจุดเริ่มต้น โจทย์ฝึก และพื้นที่แสดงความสามารถ HumanoidTH จะเชื่อมทั้งสองกลุ่มผ่านโปรเจกต์และการแข่งขัน โดยมีมหาวิทยาลัยและห้องปฏิบัติการร่วมสนับสนุน นี่คือรูปแบบความร่วมมือที่เราต้องการทดลองกับพันธมิตรกลุ่มแรก"
+    "notes_th": "แพลตฟอร์มนี้เชื่อมคนสองกลุ่ม บริษัทนำโจทย์ เทคโนโลยี และผู้เชี่ยวชาญเข้ามา เพื่อค้นหาแนวคิดใหม่และคนที่มีทักษะจากผลงานจริง ส่วนผู้เรียนได้จุดเริ่มต้น โจทย์ฝึก และพื้นที่แสดงความสามารถ HumanoidTH เชื่อมทั้งสองกลุ่มผ่านโปรเจกต์และการแข่งขัน โดยมีมหาวิทยาลัยและห้องปฏิบัติการช่วยสนับสนุน เราจะเริ่มตรวจสอบความต้องการเหล่านี้กับพันธมิตรกลุ่มแรก"
   },
   {
     "title": "Competition creates continuous progress",
-    "seconds": 45,
+    "seconds": 30,
     "notes": "The central idea is that competition makes progress visible. A company or service provider proposes a challenge. Learners study the skills they need, build a solution, and enter the competition. Evaluation gives them evidence and feedback. They then improve their solution and return for another round. A shared task and clear rules help teams compare their work fairly. We want to reward improvement, clear communication, and useful solutions, so the value of the competition continues after the event ends.",
     "bg": "F5F3EB",
     "els": [
@@ -555,7 +555,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "03 / 06",
+        "t": "03 / 07",
         "size": 20,
         "c": "173E32",
         "bold": true,
@@ -928,11 +928,11 @@
         "align": "left"
       }
     ],
-    "notes_th": "หัวใจของแนวคิดนี้คือ การแข่งขันช่วยให้เราเห็นพัฒนาการได้ชัดเจน เริ่มจากบริษัทหรือผู้จัดเสนอปัญหา ผู้เรียนศึกษาทักษะที่จำเป็น สร้างผลงาน แล้วนำมาแข่งขันภายใต้โจทย์และกติกาเดียวกัน หลังการประเมิน ทีมจะได้ทั้งผลลัพธ์และคำแนะนำ เพื่อนำไปปรับปรุงก่อนกลับมาทดลองอีกครั้ง สิ่งที่เราอยากสนับสนุนจึงรวมถึงการพัฒนาจากครั้งก่อน การอธิบายผลงานอย่างชัดเจน และการแก้ปัญหาที่ใช้งานได้จริง เมื่อทำซ้ำเป็นรอบ เราจะได้ทั้งโปรเจกต์ที่ดีขึ้นและผู้เรียนที่มีทักษะมากขึ้น"
+    "notes_th": "การแข่งขันช่วยให้เห็นพัฒนาการได้ชัดเจน เริ่มจากบริษัทเสนอปัญหา ผู้เรียนศึกษาทักษะ สร้างผลงาน และแข่งขันภายใต้กติกาเดียวกัน หลังประเมิน ทีมจะได้ผลลัพธ์กับคำแนะนำ เพื่อนำไปปรับปรุงแล้วทดลองอีกครั้ง เราอยากให้ความสำคัญกับการพัฒนาจากรอบก่อน การอธิบายผลงาน และการแก้ปัญหาที่ใช้งานได้จริง เมื่อทำซ้ำ เราจะได้ทั้งโปรเจกต์ที่ดีขึ้นและผู้เรียนที่มีทักษะมากขึ้น"
   },
   {
     "title": "Turn a company challenge into a robotics project",
-    "seconds": 60,
+    "seconds": 45,
     "notes": "Here is one project that makes the idea concrete: robot navigation. A company could propose a task such as moving from a starting point to a destination while avoiding obstacles. Our current grid simulator gives beginners a simple place to start. Teams write movement commands, save their program, run it, and inspect the replay. They can see whether the goal was reached, how many commands they used, and where a collision happened. After feedback, they change the program and try again. Those attempts make progress visible. This is the project journey we want to support: from a clear problem to a working solution and evidence of improvement. Partner-led hardware challenges would be a later step.",
     "bg": "F5F3EB",
     "els": [
@@ -976,7 +976,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "04 / 06",
+        "t": "04 / 07",
         "size": 20,
         "c": "173E32",
         "bold": true,
@@ -1481,11 +1481,11 @@
         "align": "left"
       }
     ],
-    "notes_th": "ตัวอย่างที่ทำให้เห็นภาพคือโปรเจกต์นำทางหุ่นยนต์ บริษัทอาจตั้งโจทย์ให้หุ่นยนต์เดินจากจุดเริ่มต้นไปถึงเป้าหมาย โดยหลบสิ่งกีดขวาง สำหรับผู้เริ่มต้น เรามีตัวจำลองแบบตารางให้ฝึกเขียนคำสั่งเดินหน้า เลี้ยวซ้าย และเลี้ยวขวา ทีมสามารถบันทึกโปรแกรม สั่งรัน และเปิดดูเส้นทางย้อนหลังได้ จากนั้นตรวจว่าถึงเป้าหมายหรือไม่ ใช้กี่คำสั่ง และชนตรงไหน เมื่อเห็นข้อผิดพลาด ก็แก้โปรแกรมแล้วลองใหม่ ผลจากแต่ละรอบทำให้เห็นว่าทีมพัฒนาขึ้นอย่างไร นี่คือเส้นทางที่เราอยากให้เกิดขึ้น ตั้งแต่เข้าใจโจทย์ ลงมือสร้าง ไปจนถึงมีหลักฐานอธิบายผลงานของตัวเอง ส่วนโจทย์ที่ใช้หุ่นยนต์จริง จะเป็นขั้นต่อไปที่พัฒนาร่วมกับบริษัทพันธมิตร"
+    "notes_th": "ตัวอย่างคือโปรเจกต์นำทางหุ่นยนต์ บริษัทอาจตั้งโจทย์ให้เดินจากจุดเริ่มต้นไปถึงเป้าหมายโดยหลบสิ่งกีดขวาง ผู้เริ่มต้นฝึกได้ในตัวจำลองแบบตาราง ด้วยคำสั่งเดินหน้า เลี้ยวซ้าย และเลี้ยวขวา ทีมบันทึกโปรแกรม สั่งรัน และดูเส้นทางย้อนหลังได้ แล้วตรวจว่าถึงเป้าหมายหรือไม่ ใช้กี่คำสั่ง และชนตรงไหน จากนั้นแก้โปรแกรมแล้วลองใหม่ ผลแต่ละรอบจึงเป็นหลักฐานว่าทีมพัฒนาขึ้นอย่างไร ส่วนโจทย์ที่ใช้หุ่นยนต์จริง จะเป็นขั้นต่อไปที่พัฒนาร่วมกับบริษัทพันธมิตร"
   },
   {
     "title": "The software pilot connects the journey",
-    "seconds": 50,
+    "seconds": 40,
     "notes": "The project already has a working software pilot. Learners can explore robot information, follow lessons, and practise in a saved-program simulator. Their programs and run history give them something concrete to improve and share. Competition workflows support team registration, judging, appeals, and published results. Companies have model profiles, review and versioning workflows, and control over which results become public. This screenshot shows the competition page with demonstration events. Our aim is to bring these features into one shared journey, so a learner can start with a lesson, build a project, and show their progress through a competition.",
     "bg": "F5F3EB",
     "els": [
@@ -1529,7 +1529,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "05 / 06",
+        "t": "05 / 07",
         "size": 20,
         "c": "173E32",
         "bold": true,
@@ -1725,7 +1725,282 @@
         "align": "left"
       }
     ],
-    "notes_th": "ตอนนี้โครงการมีซอฟต์แวร์นำร่องที่ใช้งานได้แล้ว ผู้เรียนสามารถค้นข้อมูลหุ่นยนต์ เรียนบทเรียน และฝึกในตัวจำลองที่บันทึกโปรแกรมกับประวัติการรันได้ ฝั่งการแข่งขันมีขั้นตอนสมัครทีม การตัดสิน การทักท้วง และการประกาศผล ส่วนบริษัทมีข้อมูลรุ่นหุ่นยนต์ ขั้นตอนตรวจสอบ และการกำหนดว่าผลใดเปิดเผยต่อสาธารณะได้ ภาพบนสไลด์คือหน้าการแข่งขันของระบบจริง ซึ่งใช้รายการเดโมแสดงขั้นตอน เป้าหมายของเราคือเชื่อมฟีเจอร์เหล่านี้เป็นเส้นทางเดียว ให้คนหนึ่งเริ่มจากบทเรียน สร้างโปรเจกต์ และใช้การแข่งขันแสดงพัฒนาการของตัวเองได้"
+    "notes_th": "ตอนนี้เรามีซอฟต์แวร์นำร่องที่ใช้งานได้แล้ว ผู้เรียนค้นข้อมูลหุ่นยนต์ เรียนบทเรียน และฝึกในตัวจำลองที่บันทึกโปรแกรมกับประวัติการรันได้ ฝั่งการแข่งขันมีการสมัครทีม ตัดสิน ทักท้วง และประกาศผล ส่วนบริษัทจัดการข้อมูลรุ่นและเลือกเปิดเผยผลได้ ภาพนี้คือหน้าการแข่งขันของระบบจริงที่แสดงรายการเดโม เราต้องการเชื่อมทุกขั้นตอน ให้ผู้เรียนเริ่มจากบทเรียน สร้างโปรเจกต์ และใช้การแข่งขันแสดงพัฒนาการของตัวเอง"
+  },
+  {
+    "title": "A proposed business model for the platform",
+    "seconds": 45,
+    "notes": "Our proposed business model starts with companies sponsoring robotics challenges. They gain access to project ideas and evidence of team skills. Universities and organizers could pay per event for registration, judging, appeals, and result management. Learners could join introductory activities free, with optional paid workshops for mentoring and project feedback. We would test the model through one paid company pilot, measure delivery cost and partner satisfaction, and look for repeat bookings before expanding. These are proposed revenue streams that still need customer validation.",
+    "bg": "F5F3EB",
+    "els": [
+      {
+        "kind": "text",
+        "x": 72,
+        "y": 38,
+        "w": 800,
+        "h": 34,
+        "t": "HUMANOIDTH  /  CONNECTING THAI ROBOTICS",
+        "size": 19,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "rect",
+        "x": 72,
+        "y": 833,
+        "w": 1456,
+        "h": 2,
+        "c": "D6DDCF",
+        "r": 0,
+        "line": null
+      },
+      {
+        "kind": "text",
+        "x": 72,
+        "y": 851,
+        "w": 1100,
+        "h": 25,
+        "t": "CONNECT PEOPLE. CREATE CHALLENGES. KEEP IMPROVING.",
+        "size": 16,
+        "c": "677C70",
+        "bold": false,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 1430,
+        "y": 845,
+        "w": 100,
+        "h": 35,
+        "t": "06 / 07",
+        "size": 20,
+        "c": "173E32",
+        "bold": true,
+        "align": "right"
+      },
+      {
+        "kind": "text",
+        "x": 72,
+        "y": 110,
+        "w": 1450,
+        "h": 32,
+        "t": "05 / PROPOSED BUSINESS MODEL",
+        "size": 21,
+        "c": "677C70",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 72,
+        "y": 160,
+        "w": 1450,
+        "h": 156,
+        "t": "Companies fund challenges.\nTeams turn them into projects.",
+        "size": 64,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "rect",
+        "x": 72,
+        "y": 365,
+        "w": 464,
+        "h": 310,
+        "c": "FFFFFF",
+        "r": 20,
+        "line": null
+      },
+      {
+        "kind": "text",
+        "x": 100,
+        "y": 389,
+        "w": 410,
+        "h": 35,
+        "t": "01",
+        "size": 22,
+        "c": "677C70",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 100,
+        "y": 438,
+        "w": 410,
+        "h": 57,
+        "t": "Companies",
+        "size": 36,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 100,
+        "y": 509,
+        "w": 410,
+        "h": 52,
+        "t": "Sponsor a challenge",
+        "size": 29,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 100,
+        "y": 576,
+        "w": 410,
+        "h": 80,
+        "t": "Discover ideas and teams\nthrough reviewed projects.",
+        "size": 25,
+        "c": "677C70",
+        "bold": false,
+        "align": "left"
+      },
+      {
+        "kind": "rect",
+        "x": 568,
+        "y": 365,
+        "w": 464,
+        "h": 310,
+        "c": "FFFFFF",
+        "r": 20,
+        "line": null
+      },
+      {
+        "kind": "text",
+        "x": 596,
+        "y": 389,
+        "w": 410,
+        "h": 35,
+        "t": "02",
+        "size": 22,
+        "c": "677C70",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 596,
+        "y": 438,
+        "w": 410,
+        "h": 57,
+        "t": "Organizers",
+        "size": 36,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 596,
+        "y": 509,
+        "w": 410,
+        "h": 52,
+        "t": "Pay per event",
+        "size": 29,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 596,
+        "y": 576,
+        "w": 410,
+        "h": 80,
+        "t": "Registration, judging,\nappeals and result records.",
+        "size": 25,
+        "c": "677C70",
+        "bold": false,
+        "align": "left"
+      },
+      {
+        "kind": "rect",
+        "x": 1064,
+        "y": 365,
+        "w": 464,
+        "h": 310,
+        "c": "FFFFFF",
+        "r": 20,
+        "line": null
+      },
+      {
+        "kind": "text",
+        "x": 1092,
+        "y": 389,
+        "w": 410,
+        "h": 35,
+        "t": "03",
+        "size": 22,
+        "c": "677C70",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 1092,
+        "y": 438,
+        "w": 410,
+        "h": 57,
+        "t": "Learners",
+        "size": 36,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 1092,
+        "y": 509,
+        "w": 410,
+        "h": 52,
+        "t": "Optional workshops",
+        "size": 29,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      },
+      {
+        "kind": "text",
+        "x": 1092,
+        "y": 576,
+        "w": 410,
+        "h": 80,
+        "t": "Mentored practice\nand project feedback.",
+        "size": 25,
+        "c": "677C70",
+        "bold": false,
+        "align": "left"
+      },
+      {
+        "kind": "rect",
+        "x": 72,
+        "y": 714,
+        "w": 1456,
+        "h": 78,
+        "c": "E7ECDC",
+        "r": 12,
+        "line": null
+      },
+      {
+        "kind": "text",
+        "x": 96,
+        "y": 733,
+        "w": 1405,
+        "h": 51,
+        "t": "First step: one paid company pilot. Keep introductory learning free.",
+        "size": 28,
+        "c": "173E32",
+        "bold": true,
+        "align": "left"
+      }
+    ],
+    "notes_th": "ด้านธุรกิจ เราเสนอรายได้สามทาง ทางแรก บริษัทสนับสนุนโจทย์การแข่งขัน เพื่อค้นหาแนวคิดและทีมที่มีทักษะจากผลงานจริง ทางที่สอง มหาวิทยาลัยหรือผู้จัดจ่ายค่าบริการต่อกิจกรรม สำหรับระบบสมัคร ตัดสิน และจัดการผล ทางที่สาม คือเวิร์กช็อปเสริมแบบมีค่าใช้จ่าย สำหรับคนที่ต้องการผู้เชี่ยวชาญช่วยแนะนำโปรเจกต์ โดยเสนอให้บทเรียนเริ่มต้นยังเข้าถึงได้ฟรี เราจะเริ่มจากโครงการนำร่องที่บริษัทจ่ายหนึ่งโครงการ แล้วดูต้นทุนการจัด ความพึงพอใจ และความสนใจจัดซ้ำ ทั้งหมดนี้เป็นโมเดลที่ต้องทดลองกับลูกค้าจริง"
   },
   {
     "title": "Start with one challenge and grow together",
@@ -1773,7 +2048,7 @@
         "y": 845,
         "w": 100,
         "h": 35,
-        "t": "06 / 06",
+        "t": "07 / 07",
         "size": 20,
         "c": "C5EF83",
         "bold": true,
@@ -1918,6 +2193,6 @@
         "align": "left"
       }
     ],
-    "notes_th": "ก้าวต่อไปคือเริ่มโครงการนำร่องกับหนึ่งบริษัท หนึ่งกลุ่มผู้เรียน และหนึ่งโจทย์หุ่นยนต์ เราจะดูจำนวนผลงานที่ทำสำเร็จ พัฒนาการระหว่างรอบ และคำแนะนำจากผู้เรียนกับผู้เชี่ยวชาญ เรากำลังมองหาพันธมิตรที่จะช่วยออกแบบและทดลองโจทย์แรกไปด้วยกัน บริษัทนำโจทย์มา ผู้เรียนนำไอเดียมา และการแข่งขันจะช่วยเปลี่ยนไอเดียเหล่านั้นให้เป็นโปรเจกต์และความก้าวหน้าของวงการหุ่นยนต์ไทย"
+    "notes_th": "ก้าวต่อไปคือหนึ่งบริษัท หนึ่งกลุ่มผู้เรียน และหนึ่งโจทย์หุ่นยนต์ เราจะดูจำนวนผลงานที่ทำสำเร็จ พัฒนาการระหว่างรอบ และคำแนะนำจากผู้เข้าร่วม เรากำลังมองหาพันธมิตรที่จะช่วยทดลองโจทย์แรก บริษัทนำโจทย์มา ผู้เรียนนำไอเดียมา และการแข่งขันจะช่วยเปลี่ยนไอเดียให้เป็นโปรเจกต์และความก้าวหน้าของวงการหุ่นยนต์ไทย"
   }
 ]

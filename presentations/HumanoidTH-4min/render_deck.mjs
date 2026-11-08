@@ -11,7 +11,8 @@ await page.evaluate(()=>document.fonts.ready);
 await page.addStyleTag({content:'#controls{visibility:hidden}'});
 const problems=await page.evaluate(()=>[...document.querySelectorAll('.text')].filter(e=>e.scrollHeight>e.clientHeight+2||e.scrollWidth>e.clientWidth+2).map(e=>({text:e.textContent,height:e.clientHeight,scroll:e.scrollHeight})));
 if(problems.length)throw new Error(JSON.stringify(problems));
-for(let i=0;i<6;i++){
+const slideCount=await page.locator('.slide').count();
+for(let i=0;i<slideCount;i++){
  await page.evaluate(i=>show(i),i);
  await page.locator('.slide.active').screenshot({path:dir+`/preview/slide-${i+1}.png`});
 }
@@ -19,4 +20,4 @@ await page.emulateMedia({media:'print'});
 await page.evaluate(()=>document.title='HumanoidTH — Competition for Progress');
 await page.pdf({path:dir+'/HumanoidTH-Competition-for-Progress.pdf',width:'1600px',height:'900px',printBackground:true,preferCSSPageSize:true});
 await browser.close();
-console.log('Rendered six slide previews and PDF; no text overflow.');
+console.log(`Rendered ${slideCount} slide previews and PDF; no text overflow.`);
