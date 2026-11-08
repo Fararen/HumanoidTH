@@ -6,8 +6,6 @@
 
 เว็บ sandbox สาธารณะต้อง deploy เป็น Vercel project แยก โดยตั้ง `PUBLIC_DEMO_MODE=1`, `DEMO_SANDBOX_MODE=1`, `PUBLIC_DEMO_PROJECT_ID` ให้ตรงกับ project ID, `DATABASE_URL` ให้ชี้ไปฐานข้อมูล sandbox แยกต่างหาก และ `SESSION_SECRET` ใหม่ ถ้าต้องการลิงก์จากเว็บหลัก ให้ตั้ง `NEXT_PUBLIC_DEMO_URL` เป็น URL ของ demo project
 
-กรณี hackathon ชั่วคราว เจ้าของระบบอาจเปิด demo บน Production ได้โดยตั้ง `PUBLIC_DEMO_MODE=1`, `TEMPORARY_PRODUCTION_DEMO=1` และ `PUBLIC_DEMO_EXPIRES_AT` เป็นเวลา UTC ในอนาคต ระบบจะซ่อน demo และปฏิเสธ session ของบัญชี demo หลังหมดเวลา แต่บัญชีในฐานข้อมูลต้องลบแยกด้วย `pnpm delete:temporary-demo` เมื่อจบงาน บัญชี ADMIN ในโหมดนี้เข้าถึงข้อมูล Production จริง
-
 สำหรับเตรียมฐานข้อมูล sandbox ให้ใส่ connection string ลง `.env.demo` แล้วรัน `pnpm seed:demo-sandbox` คำสั่งนี้ใช้ migration และข้อมูลตัวอย่างที่ติดป้าย demo พร้อมตรวจว่าฐานข้อมูล sandbox ไม่ใช่ database เดียวกับ `.env` ถ้ามี `DIRECT_DATABASE_URL` ให้ชี้ไปยัง direct endpoint ของ sandbox เดียวกัน คำสั่งนี้ต้องรันในเครื่องและปฏิเสธการทำงานใน Production environment
 
 กรอกค่าที่ไฟล์ `.env` ในรากโปรเจกต์ ซึ่งถูก Git ignore ไว้ ส่วน `.env.example` เป็นแม่แบบที่แชร์ได้และต้องไม่มี key จริง
