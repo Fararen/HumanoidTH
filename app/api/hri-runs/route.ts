@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateHriRun } from "@/lib/hri-simulation";
+import { isDeepStrictEqual } from "node:util";
 
 export const dynamic = "force-dynamic";
 
@@ -22,47 +24,30 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let body: unknown;
   try {
-    const body = await request.json();
-    const {
-      runCode,
-      robotId,
-      robotName,
-      sceneVersion = "wellness-reception-v1.0",
-      simulationMode = "interactive-hri-living-lab",
-      testCaseType,
-      terminalStatus,
-      testCasePassed = true,
-      navigationSucceeded = false,
-      durationSec = 0,
-      errorReason = null,
-      events = []
-    } = body;
-
-    if (!runCode || !robotId || !robotName || !testCaseType || !terminalStatus) {
-      return NextResponse.json(
-        { success: false, error: "Missing required HRI run fields" },
-        { status: 400 }
-      );
+    const text = await request.text();
+    if (text.length > 256_000) return NextResponse.json({ success: false, error: "Run Log too large" }, { status: 413 });
+    body = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
+  const validated = validateHriRun(body);
+  if (!validated.ok) return NextResponse.json({ success: false, error: validated.error }, { status: 400 });
+  const { events, ...fields } = validated.data;
+  try {
+    const robot = await prisma.robotModel.findUnique({ where: { id: fields.robotId }, select: { canonicalName: true } });
+    // A real missing-model trace may be recorded, but never a successful run for a nonexistent model.
+    if (!robot && (fields.testCaseType !== "LOAD_ERROR" || !events.some(event => event.action === "MODEL_LOAD_FAILED"))) {
+      return NextResponse.json({ success: false, error: "Robot model not found" }, { status: 404 });
     }
-
-    const saved = await prisma.hriSimulationRun.create({
-      data: {
-        runCode,
-        robotId,
-        robotName,
-        sceneVersion,
-        simulationMode,
-        testCaseType,
-        terminalStatus,
-        testCasePassed: Boolean(testCasePassed),
-        navigationSucceeded: Boolean(navigationSucceeded),
-        durationSec: Number(durationSec),
-        errorReason,
-        eventsJson: events
-      }
-    });
-
+    const data = { ...fields, robotName: robot?.canonicalName ?? `Unknown Model (${fields.robotId})`, eventsJson: events };
+    // The run ID is an idempotency key. Retries must never overwrite a completed run.
+    const saved = await prisma.hriSimulationRun.upsert({ where: { runCode: fields.runCode }, create: data, update: {} });
+    const sameEvents = isDeepStrictEqual(saved.eventsJson, events);
+    const sameRun = saved.robotId === data.robotId && saved.sceneVersion === data.sceneVersion &&
+      saved.simulationMode === data.simulationMode && saved.errorReason === data.errorReason && sameEvents;
+    if (!sameRun) return NextResponse.json({ success: false, error: "Run ID already belongs to a different log" }, { status: 409 });
     return NextResponse.json({ success: true, run: saved });
   } catch (error) {
     console.error("POST /api/hri-runs error:", error);

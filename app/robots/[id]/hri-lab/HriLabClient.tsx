@@ -22,6 +22,8 @@ import {
   XCircle
 } from "lucide-react";
 import styles from "./HriLab.module.css";
+import { HRI_SCENE_VERSION, HRI_SIMULATION_MODE, HRI_CASES, startHriRun, actOnHriRun, advanceHriRun, hriOutcome, hriCsvCell, type HriRun, type HriSavedRun } from "@/lib/hri-simulation";
+export type { HriSavedRun } from "@/lib/hri-simulation";
 
 export type HriAtlasRobot = {
   id: string;
@@ -48,52 +50,18 @@ export type HriAtlasRobot = {
   }>;
 };
 
-export type HriRunEvent = {
-  seq: number;
-  timeSec: number;
-  actor: "SYSTEM" | "ROBOT" | "USER" | "STAFF";
-  action: string;
-  detail: string;
-  status: string;
-};
-
-export type HriSavedRun = {
-  id: string;
-  runCode: string;
-  robotId: string;
-  robotName: string;
-  sceneVersion: string;
-  simulationMode: string;
-  testCaseType: "NAVIGATION_SUCCESS" | "STAFF_HANDOFF" | "USER_CANCEL" | "LOAD_ERROR";
-  terminalStatus: string;
-  testCasePassed: boolean;
-  navigationSucceeded: boolean;
-  durationSec: number;
-  errorReason: string | null;
-  events: HriRunEvent[];
-  createdAt: string;
-};
-
 interface HriLabClientProps {
   requestedRobotId: string;
   initialRobot: HriAtlasRobot | null;
   allRobots: Array<{ id: string; canonicalName: string; robotType: string }>;
   initialRuns: HriSavedRun[];
   initialLoadError: string | null;
+  initialHistoryError?: string | null;
   lang: "th" | "en";
 }
 
-type SimPhase =
-  | "READY"
-  | "GREETING"
-  | "GUIDING"
-  | "ARRIVED"
-  | "HANDOFF_STAFF"
-  | "CANCELLED"
-  | "ERROR_RECOVERY";
-
-const SCENE_VERSION = "HRI-WELLNESS-RECEPTION-v1.0";
-const SIMULATION_MODE = "WEB_INTERACTIVE_2D_STATE_MACHINE";
+const SCENE_VERSION = HRI_SCENE_VERSION;
+const SIMULATION_MODE = HRI_SIMULATION_MODE;
 
 function formatRobotLabel(raw: string | null | undefined) {
   if (!raw) return "—";
@@ -101,587 +69,225 @@ function formatRobotLabel(raw: string | null | undefined) {
 }
 
 export default function HriLabClient({
-  requestedRobotId,
-  initialRobot,
-  allRobots,
-  initialRuns,
-  initialLoadError
+  requestedRobotId, initialRobot, allRobots, initialRuns, initialLoadError, initialHistoryError
 }: HriLabClientProps) {
   const router = useRouter();
-  const [robot, setRobot] = useState<HriAtlasRobot | null>(initialRobot);
-  const [phase, setPhase] = useState<SimPhase>(
-    initialLoadError || !initialRobot ? "ERROR_RECOVERY" : "READY"
-  );
-  const [errorReason, setErrorReason] = useState<string | null>(initialLoadError);
-  const [runCode, setRunCode] = useState<string>(() => {
-    const suffix = Math.floor(1000 + Math.random() * 9000);
-    return `M01-RUN-${suffix}`;
-  });
-  const [events, setEvents] = useState<HriRunEvent[]>([]);
-  const [elapsedSec, setElapsedSec] = useState<number>(0);
-  const [robotProgress, setRobotProgress] = useState<number>(0);
-  const [savedRuns, setSavedRuns] = useState<HriSavedRun[]>(initialRuns);
-  const [isSavingRun, setIsSavingRun] = useState<boolean>(false);
-  const [copiedSummary, setCopiedSummary] = useState<boolean>(false);
+  const robot = initialRobot;
+  const [run, setRun] = useState<HriRun | null>(null);
+  const runRef = useRef<HriRun | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [savedRuns, setSavedRuns] = useState(initialRuns);
+  const [isSavingRun, setIsSavingRun] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedCode, setSavedCode] = useState<string | null>(null);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState<"log" | "verification" | "architecture">("log");
   const [toastNotice, setToastNotice] = useState<string | null>(null);
+  const attemptedRuns = useRef(new Set<string>());
+  const saving = useRef(false);
+  const phase = run?.phase ?? "READY";
+  const runCode = run?.runCode ?? "…";
+  const events = run?.events ?? [];
+  const robotProgress = Math.round(run?.progress ?? 0);
+  const errorReason = run?.errorReason ?? initialLoadError;
+  const sceneVersion = run?.sceneVersion ?? SCENE_VERSION;
+  const simulationMode = run?.simulationMode ?? SIMULATION_MODE;
+  const currentOutcome = useMemo(() => run ? hriOutcome(run.events, run.errorReason) : null, [run]);
+  const canAct = phase === "GREETING" || phase === "GUIDING";
 
-  const startTimeRef = useRef<number>(Date.now());
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const navIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  function updateRun(next: HriRun) {
+    runRef.current = next;
+    setRun(next);
+    const outcome = hriOutcome(next.events, next.errorReason);
+    if (outcome) setElapsedSec(outcome.durationSec);
+  }
+
+  function beginRun() {
+    const next = startHriRun({
+      runCode: `M01-RUN-${crypto.randomUUID()}`,
+      robotId: requestedRobotId, robotName: robot?.canonicalName ?? `Unknown Model (${requestedRobotId})`,
+      tick: performance.now(), startedAt: new Date().toISOString(),
+      errorReason: initialLoadError || (!robot ? "ไม่พบรุ่นในทะเบียน Atlas" : null)
+    });
+    setElapsedSec(0);
+    setSaveError(null);
+    setSavedCode(null);
+    setToastNotice(null);
+    setCopiedSummary(false);
+    updateRun(next);
+  }
 
   useEffect(() => {
-    const now = Date.now();
-    startTimeRef.current = now;
+    setSavedRuns(initialRuns);
+    beginRun();
+  }, [requestedRobotId, initialRobot, initialLoadError, initialRuns]);
 
-    if (initialLoadError || !initialRobot) {
-      const errEvents: HriRunEvent[] = [
-        {
-          seq: 1,
-          timeSec: 0.0,
-          actor: "SYSTEM",
-          action: "INIT_SIMULATION",
-          detail: `เรียกโหลดข้อมูลหุ่นยนต์รหัส "${requestedRobotId}" สำหรับฉาก ${SCENE_VERSION}`,
-          status: "PENDING"
-        },
-        {
-          seq: 2,
-          timeSec: 0.2,
-          actor: "SYSTEM",
-          action: "MODEL_LOAD_FAILED",
-          detail:
-            initialLoadError ||
-            `ไม่พบรหัสหุ่นยนต์ "${requestedRobotId}" ในทะเบียน HumanoidTH Atlas`,
-          status: "ERROR_RECOVERY"
-        }
-      ];
-      setEvents(errEvents);
-      setElapsedSec(0.2);
-      return;
-    }
-
-    const initEvents: HriRunEvent[] = [
-      {
-        seq: 1,
-        timeSec: 0.0,
-        actor: "SYSTEM",
-        action: "LOAD_ATLAS_PROVENANCE",
-        detail: `ดึงข้อมูลทะเบียนจริงของ "${initialRobot.canonicalName}" (${initialRobot.id}) พร้อมแหล่งอ้างอิง ${initialRobot.sources.length} รายการ`,
-        status: "READY"
-      },
-      {
-        seq: 2,
-        timeSec: 0.4,
-        actor: "ROBOT",
-        action: "RECEPTION_GREETING",
-        detail: `${initialRobot.canonicalName}: "สวัสดีครับ ยินดีต้อนรับสู่จุดต้อนรับศูนย์สุขภาวะ (Wellness Center) วันนี้ต้องการให้ช่วยนำทางไปยังห้องกิจกรรม หรือติดต่อเจ้าหน้าที่ครับ?"`,
-        status: "GREETING"
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const current = runRef.current;
+      if (!current || (current.phase !== "GREETING" && current.phase !== "GUIDING")) return;
+      const tick = performance.now();
+      const next = advanceHriRun(current, tick);
+      if (next !== current) updateRun(next);
+      if (!hriOutcome(next.events, next.errorReason)) {
+        setElapsedSec(Math.max(0, Math.round((tick - next.startedTick) / 100) / 10));
       }
-    ];
-    setEvents(initEvents);
-    setPhase("GREETING");
-    setElapsedSec(0.4);
-  }, [initialLoadError, initialRobot, requestedRobotId]);
-
-  useEffect(() => {
-    if (phase === "GREETING" || phase === "GUIDING") {
-      timerRef.current = setInterval(() => {
-        const diff = (Date.now() - startTimeRef.current) / 1000;
-        setElapsedSec(Number(diff.toFixed(1)));
-      }, 100);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [phase]);
-
-  useEffect(() => {
-    return () => {
-      if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-    };
+    }, 100);
+    return () => clearInterval(timer);
   }, []);
 
-  const currentOutcome = useMemo(() => {
-    if (phase === "ARRIVED") {
-      return {
-        testCaseType: "NAVIGATION_SUCCESS" as const,
-        terminalStatus: "ARRIVED_AT_DESTINATION",
-        testCasePassed: true,
-        navigationSucceeded: true,
-        summaryTh: "ผ่านกรณีทดสอบที่ 1 · ภารกิจนำทางสำเร็จถึงห้องกิจกรรม (A-102)"
-      };
-    }
-    if (phase === "HANDOFF_STAFF") {
-      return {
-        testCaseType: "STAFF_HANDOFF" as const,
-        terminalStatus: "HANDED_OFF_TO_STAFF",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: "ผ่านกรณีทดสอบที่ 2 · ส่งต่อเจ้าหน้าที่สำเร็จ (ไม่ได้เริ่มภารกิจนำทาง)"
-      };
-    }
-    if (phase === "CANCELLED") {
-      return {
-        testCaseType: "USER_CANCEL" as const,
-        terminalStatus: "CANCELLED_BY_USER",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: "ผ่านกรณีทดสอบที่ 3 · ผู้ใช้ยกเลิกและหุ่นยนต์กลับจุดพักอย่างปลอดภัย"
-      };
-    }
-    if (phase === "ERROR_RECOVERY") {
-      return {
-        testCaseType: "LOAD_ERROR" as const,
-        terminalStatus: "RECOVERY_READY",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: "ผ่านกรณีทดสอบที่ 4 · แจ้งสาเหตุและแสดงทางเลือกกู้คืนเมื่อโหลดรุ่นไม่สำเร็จ"
-      };
-    }
-    return null;
-  }, [phase]);
-
-  const persistRunToBackend = async (
-    nextOutcome: NonNullable<typeof currentOutcome>,
-    finalEvents: HriRunEvent[],
-    finalDuration: number,
-    customError?: string | null
-  ) => {
+  async function persistRunToBackend(completed: HriRun) {
+    if (saving.current) return;
+    const outcome = hriOutcome(completed.events, completed.errorReason);
+    if (!outcome?.testCasePassed) return;
+    saving.current = true;
     setIsSavingRun(true);
-    const payload = {
-      runCode,
-      robotId: robot?.id || requestedRobotId,
-      robotName: robot?.canonicalName || `Unknown Model (${requestedRobotId})`,
-      sceneVersion: SCENE_VERSION,
-      simulationMode: SIMULATION_MODE,
-      testCaseType: nextOutcome.testCaseType,
-      terminalStatus: nextOutcome.terminalStatus,
-      testCasePassed: nextOutcome.testCasePassed,
-      navigationSucceeded: nextOutcome.navigationSucceeded,
-      durationSec: finalDuration,
-      errorReason: customError ?? errorReason ?? null,
-      events: finalEvents
-    };
-
+    setSaveError(null);
     try {
-      const res = await fetch("/api/hri-runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      const response = await fetch("/api/hri-runs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({
+          runCode: completed.runCode, robotId: completed.robotId, robotName: completed.robotName,
+          sceneVersion: completed.sceneVersion, simulationMode: completed.simulationMode,
+          events: completed.events, errorReason: completed.errorReason
+        })
       });
-      const data = await res.json();
-      if (data.success && data.run) {
-        const saved: HriSavedRun = {
-          id: data.run.id,
-          runCode: data.run.runCode,
-          robotId: data.run.robotId,
-          robotName: data.run.robotName,
-          sceneVersion: data.run.sceneVersion,
-          simulationMode: data.run.simulationMode,
-          testCaseType: data.run.testCaseType,
-          terminalStatus: data.run.terminalStatus,
-          testCasePassed: data.run.testCasePassed,
-          navigationSucceeded: data.run.navigationSucceeded,
-          durationSec: data.run.durationSec,
-          errorReason: data.run.errorReason,
-          events: finalEvents,
-          createdAt: data.run.createdAt
-        };
-        setSavedRuns((prev) => [saved, ...prev.filter((r) => r.runCode !== saved.runCode)]);
-      }
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.run) throw new Error("Save rejected");
+      const saved: HriSavedRun = { ...data.run, events: data.run.eventsJson };
+      setSavedRuns(previous => [saved, ...previous.filter(item => item.runCode !== saved.runCode)]);
+      if (runRef.current?.runCode === completed.runCode) setSavedCode(completed.runCode);
     } catch {
-      // Local state still keeps current run
+      if (runRef.current?.runCode === completed.runCode) {
+        setSaveError("บันทึกฐานข้อมูลไม่สำเร็จ ผลรอบนี้ยังอยู่ในหน้านี้ กรุณาลองบันทึกอีกครั้งหรือส่งออก Run Log ก่อนออกจากหน้า");
+      }
     } finally {
+      saving.current = false;
       setIsSavingRun(false);
     }
-  };
+  }
 
-  const handleStartNavigation = () => {
-    if (!robot || phase === "GUIDING") return;
-    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
+  useEffect(() => {
+    if (!run || !hriOutcome(run.events, run.errorReason) || attemptedRuns.current.has(run.runCode)) return;
+    attemptedRuns.current.add(run.runCode);
+    void persistRunToBackend(run);
+  }, [run]);
 
-    const tNow = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
-    const userEvent: HriRunEvent = {
-      seq: events.length + 1,
-      timeSec: tNow,
-      actor: "USER",
-      action: "SELECT_OPTION_1_NAVIGATE",
-      detail: "ผู้ใช้เลือก [1] ให้หุ่นช่วยนำทางไปยังห้องกิจกรรมบำบัด (Activity & Wellness Room A-102)",
-      status: "GUIDING"
-    };
-    const robotAck: HriRunEvent = {
-      seq: events.length + 2,
-      timeSec: Number((tNow + 0.3).toFixed(1)),
-      actor: "ROBOT",
-      action: "START_WAYFINDING_PATH",
-      detail: `${robot.canonicalName}: "รับทราบครับ กรุณาเดินตามผมมาทางโถงทางเดินหลัก ระยะทาง 12 เมตรครับ"`,
-      status: "GUIDING"
-    };
-
-    const nextEvents = [...events, userEvent, robotAck];
-    setEvents(nextEvents);
-    setPhase("GUIDING");
-    setRobotProgress(15);
-
-    let progress = 15;
-    navIntervalRef.current = setInterval(() => {
-      progress += 17;
-      if (progress >= 100) {
-        if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-        setRobotProgress(100);
-        const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
-        setElapsedSec(endSec);
-
-        const checkpointEvent: HriRunEvent = {
-          seq: nextEvents.length + 1,
-          timeSec: Number((endSec - 0.6).toFixed(1)),
-          actor: "ROBOT",
-          action: "PASS_CORRIDOR_CHECKPOINT",
-          detail: `${robot.canonicalName} เคลื่อนผ่านโถงทางเดินหลักด้วยความเร็วปลอดภัย 0.8 m/s`,
-          status: "GUIDING"
-        };
-        const arriveEvent: HriRunEvent = {
-          seq: nextEvents.length + 2,
-          timeSec: endSec,
-          actor: "ROBOT",
-          action: "DESTINATION_REACHED",
-          detail: `${robot.canonicalName}: "ถึงหน้าห้องกิจกรรมบำบัด A-102 เรียบร้อยแล้วครับ ขอให้มีความสุขกับการใช้บริการครับ"`,
-          status: "ARRIVED_AT_DESTINATION"
-        };
-
-        const completedEvents = [...nextEvents, checkpointEvent, arriveEvent];
-        setEvents(completedEvents);
-        setPhase("ARRIVED");
-        setToastNotice("บันทึกผลสำเร็จ: หุ่นยนต์นำทางถึงจุดหมายเรียบร้อยแล้ว (กรณีทดสอบที่ 1)");
-        setTimeout(() => setToastNotice(null), 4000);
-
-        void persistRunToBackend(
-          {
-            testCaseType: "NAVIGATION_SUCCESS",
-            terminalStatus: "ARRIVED_AT_DESTINATION",
-            testCasePassed: true,
-            navigationSucceeded: true,
-            summaryTh: ""
-          },
-          completedEvents,
-          endSec
-        );
-      } else {
-        setRobotProgress(progress);
-      }
-    }, 380);
-  };
-
-  const handleRequestStaff = () => {
-    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
-    setElapsedSec(endSec);
-
-    const userEvent: HriRunEvent = {
-      seq: events.length + 1,
-      timeSec: endSec,
-      actor: "USER",
-      action: "SELECT_OPTION_2_STAFF",
-      detail: "ผู้ใช้เลือก [2] ขอติดต่อเจ้าหน้าที่ประจำจุดต้อนรับ (Human Staff Handoff)",
-      status: "HANDOFF_PENDING"
-    };
-    const robotEvent: HriRunEvent = {
-      seq: events.length + 2,
-      timeSec: Number((endSec + 0.2).toFixed(1)),
-      actor: "ROBOT",
-      action: "NOTIFY_RECEPTION_STAFF",
-      detail: `${robot?.canonicalName || "หุ่นยนต์"}: "กำลังส่งสัญญาณเรียกเจ้าหน้าที่จุดต้อนรับให้มารับช่วงต่อทันทีครับ"`,
-      status: "HANDED_OFF_TO_STAFF"
-    };
-    const staffEvent: HriRunEvent = {
-      seq: events.length + 3,
-      timeSec: Number((endSec + 0.4).toFixed(1)),
-      actor: "STAFF",
-      action: "STAFF_ACKNOWLEDGED",
-      detail: "เจ้าหน้าที่เคาน์เตอร์รับเรื่องและเข้าดูแลผู้มาติดต่อ (จบการทดลองในสถานะส่งต่อเจ้าหน้าที่)",
-      status: "HANDED_OFF_TO_STAFF"
-    };
-
-    const completedEvents = [...events, userEvent, robotEvent, staffEvent];
-    setEvents(completedEvents);
-    setPhase("HANDOFF_STAFF");
-    setToastNotice("บันทึกผลสำเร็จ: ส่งต่อเจ้าหน้าที่เรียบร้อยแล้ว (กรณีทดสอบที่ 2)");
-    setTimeout(() => setToastNotice(null), 4000);
-
-    void persistRunToBackend(
-      {
-        testCaseType: "STAFF_HANDOFF",
-        terminalStatus: "HANDED_OFF_TO_STAFF",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: ""
-      },
-      completedEvents,
-      Number((endSec + 0.4).toFixed(1))
-    );
-  };
-
-  const handleCancelInteraction = () => {
-    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
-    setElapsedSec(endSec);
-
-    const userEvent: HriRunEvent = {
-      seq: events.length + 1,
-      timeSec: endSec,
-      actor: "USER",
-      action: "SELECT_OPTION_3_CANCEL",
-      detail: "ผู้ใช้เลือก [3] ยกเลิกการขอความช่วยเหลือ (Cancel Interaction)",
-      status: "CANCELLING"
-    };
-    const robotEvent: HriRunEvent = {
-      seq: events.length + 2,
-      timeSec: Number((endSec + 0.2).toFixed(1)),
-      actor: "ROBOT",
-      action: "SAFE_STANDBY_RETURN",
-      detail: `${robot?.canonicalName || "หุ่นยนต์"} หยุดการเคลื่อนที่ทันทีและกลับสู่สถานะเตรียมพร้อม ณ จุดต้อนรับ`,
-      status: "CANCELLED_BY_USER"
-    };
-
-    const completedEvents = [...events, userEvent, robotEvent];
-    setEvents(completedEvents);
-    setRobotProgress(0);
-    setPhase("CANCELLED");
-    setToastNotice("บันทึกผลสำเร็จ: ยกเลิกและหยุดทำงานอย่างปลอดภัย (กรณีทดสอบที่ 3)");
-    setTimeout(() => setToastNotice(null), 4000);
-
-    void persistRunToBackend(
-      {
-        testCaseType: "USER_CANCEL",
-        terminalStatus: "CANCELLED_BY_USER",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: ""
-      },
-      completedEvents,
-      Number((endSec + 0.2).toFixed(1))
-    );
-  };
-
-  const handleSimulateLoadFailure = () => {
-    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-    const endSec = Number(((Date.now() - startTimeRef.current) / 1000).toFixed(1));
-    const simulatedError =
-      "จำลองความผิดพลาด: ไม่สามารถโหลดพารามิเตอร์ฉากจำลองหรือรหัสรุ่นหุ่นยนต์ได้ (Simulated Scene/Model Load Failure)";
-    setErrorReason(simulatedError);
-    setRobotProgress(0);
-
-    const failEvents: HriRunEvent[] = [
-      ...events,
-      {
-        seq: events.length + 1,
-        timeSec: endSec,
-        actor: "SYSTEM",
-        action: "FAULT_INJECTION_LOAD_ERROR",
-        detail: simulatedError,
-        status: "ERROR_RECOVERY"
-      },
-      {
-        seq: events.length + 2,
-        timeSec: Number((endSec + 0.1).toFixed(1)),
-        actor: "SYSTEM",
-        action: "SHOW_RECOVERY_ACTIONS",
-        detail: "ระบบแสดงสาเหตุของปัญหา พร้อมปุ่ม 'ลองโหลดใหม่' และ 'กลับไปหน้ารายการหุ่นยนต์ (/robots)'",
-        status: "RECOVERY_READY"
-      }
-    ];
-    setEvents(failEvents);
-    setPhase("ERROR_RECOVERY");
-    setToastNotice("จำลองกรณีโหลดไม่สำเร็จ (กรณีทดสอบที่ 4) เรียบร้อยแล้ว");
-    setTimeout(() => setToastNotice(null), 4000);
-
-    void persistRunToBackend(
-      {
-        testCaseType: "LOAD_ERROR",
-        terminalStatus: "RECOVERY_READY",
-        testCasePassed: true,
-        navigationSucceeded: false,
-        summaryTh: ""
-      },
-      failEvents,
-      Number((endSec + 0.1).toFixed(1)),
-      simulatedError
-    );
-  };
-
+  function act(action: "navigate" | "staff" | "cancel" | "fail") {
+    if (runRef.current) updateRun(actOnHriRun(runRef.current, action, performance.now()));
+  }
+  const handleStartNavigation = () => act("navigate");
+  const handleRequestStaff = () => act("staff");
+  const handleCancelInteraction = () => act("cancel");
+  const handleSimulateLoadFailure = () => act("fail");
   const handleResetSimulation = () => {
-    if (navIntervalRef.current) clearInterval(navIntervalRef.current);
-    const nextCode = `M01-RUN-${Math.floor(1000 + Math.random() * 9000)}`;
-    setRunCode(nextCode);
-    startTimeRef.current = Date.now();
-    setRobotProgress(0);
-
-    if (!initialRobot) {
-      if (allRobots.length > 0) {
-        router.push(`/robots/${allRobots[0].id}/hri-lab`);
-      } else {
-        router.push("/robots");
-      }
-      return;
-    }
-
-    setRobot(initialRobot);
-    setErrorReason(null);
-    setElapsedSec(0.3);
-    setPhase("GREETING");
-    setEvents([
-      {
-        seq: 1,
-        timeSec: 0.0,
-        actor: "SYSTEM",
-        action: "RESET_SIMULATION",
-        detail: `เริ่มรอบการทดลองใหม่ (${nextCode}) สำหรับรุ่น "${initialRobot.canonicalName}"`,
-        status: "READY"
-      },
-      {
-        seq: 2,
-        timeSec: 0.3,
-        actor: "ROBOT",
-        action: "RECEPTION_GREETING",
-        detail: `${initialRobot.canonicalName}: "สวัสดีครับ ยินดีต้อนรับสู่จุดต้อนรับศูนย์สุขภาวะ วันนี้ต้องการให้ช่วยนำทางไปยังห้องกิจกรรม หรือติดต่อเจ้าหน้าที่ครับ?"`,
-        status: "GREETING"
-      }
-    ]);
+    if (saving.current) return;
+    if (!robot || initialLoadError) { router.refresh(); return; }
+    beginRun();
   };
+
+  function openSavedRun(item: HriSavedRun) {
+    if (canAct || saving.current) return;
+    attemptedRuns.current.add(item.runCode);
+    const phases: Record<HriSavedRun["testCaseType"], HriRun["phase"]> = {
+      NAVIGATION_SUCCESS: "ARRIVED", STAFF_HANDOFF: "HANDOFF_STAFF", USER_CANCEL: "CANCELLED", LOAD_ERROR: "ERROR_RECOVERY"
+    };
+    updateRun({ ...item, phase: phases[item.testCaseType], progress: item.navigationSucceeded ? 100 : 0,
+      startedAt: item.createdAt, startedTick: performance.now() });
+    setSaveError(null);
+    setSavedCode(item.runCode);
+  }
+
+  function download(contents: string, filename: string, type: string) {
+    const url = URL.createObjectURL(new Blob([contents], { type }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   const handleExportJson = () => {
-    const exportPayload = {
-      deliverable: "M01 · HumanoidTH HRI Living Lab",
-      runCode,
+    const payload = {
+      deliverable: "M01 · HumanoidTH HRI Living Lab", runCode,
       exportedAt: new Date().toISOString(),
+      persistence: savedCode === runCode ? "SAVED" : "LOCAL_ONLY",
       atlasProvenance: {
-        dataClassification: "REAL_ATLAS_RECORD",
-        robotId: robot?.id || requestedRobotId,
-        canonicalName: robot?.canonicalName || null,
+        dataClassification: robot ? "REAL_ATLAS_RECORD" : "UNAVAILABLE",
+        robotId: run?.robotId ?? requestedRobotId, canonicalName: run?.robotName ?? null,
         manufacturer: robot?.manufacturer || robot?.developerOrg || null,
-        robotType: robot?.robotType || null,
-        thailandStatus: robot?.thailandStatus || null,
-        sourcesCount: robot?.sources.length || 0,
-        sources: robot?.sources || []
+        robotType: robot?.robotType || null, sources: robot?.sources || []
       },
       simulationResult: {
-        dataClassification: "HRI_SIMULATION_SCENARIO",
-        sceneVersion: SCENE_VERSION,
-        simulationMode: SIMULATION_MODE,
-        phase,
+        dataClassification: "HRI_SIMULATION_SCENARIO", sceneVersion, simulationMode, phase,
         testCaseType: currentOutcome?.testCaseType || "IN_PROGRESS",
         terminalStatus: currentOutcome?.terminalStatus || phase,
-        testCasePassed: currentOutcome ? currentOutcome.testCasePassed : false,
-        navigationSucceeded: currentOutcome ? currentOutcome.navigationSucceeded : false,
-        durationSec: elapsedSec,
-        errorReason
-      },
-      events
+        testCasePassed: currentOutcome?.testCasePassed ?? false,
+        navigationSucceeded: currentOutcome?.navigationSucceeded ?? false,
+        durationSec: currentOutcome?.durationSec ?? elapsedSec, errorReason,
+        measurement: "Browser interaction seconds, including decision time; not physical robot performance"
+      }, events
     };
-
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-      type: "application/json;charset=utf-8"
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${runCode}-${robot?.canonicalName.replace(/\s+/g, "_") || "HRI"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    download(JSON.stringify(payload, null, 2), `${runCode}.json`, "application/json;charset=utf-8");
   };
 
   const handleExportCsv = () => {
-    const headers = [
-      "run_code",
-      "robot_id",
-      "robot_name",
-      "scene_version",
-      "simulation_mode",
-      "test_case_passed",
-      "navigation_succeeded",
-      "terminal_status",
-      "total_duration_sec",
-      "event_seq",
-      "event_time_sec",
-      "actor",
-      "action",
-      "detail"
-    ];
-    const rows = events.map((ev) => [
-      runCode,
-      robot?.id || requestedRobotId,
-      `"${(robot?.canonicalName || requestedRobotId).replace(/"/g, '""')}"`,
-      SCENE_VERSION,
-      SIMULATION_MODE,
-      currentOutcome ? String(currentOutcome.testCasePassed) : "false",
-      currentOutcome ? String(currentOutcome.navigationSucceeded) : "false",
-      currentOutcome?.terminalStatus || phase,
-      elapsedSec,
-      ev.seq,
-      ev.timeSec,
-      ev.actor,
-      ev.action,
-      `"${ev.detail.replace(/"/g, '""')}"`
+    const headers = ["run_code", "robot_id", "robot_name", "scene_version", "simulation_mode", "test_case_passed", "navigation_succeeded", "terminal_status", "total_duration_sec", "event_seq", "event_time_sec", "actor", "action", "detail", "error_reason", "persistence"];
+    const rows = events.map(event => [
+      runCode, run?.robotId ?? requestedRobotId, run?.robotName, sceneVersion, simulationMode,
+      currentOutcome?.testCasePassed ?? false, currentOutcome?.navigationSucceeded ?? false,
+      currentOutcome?.terminalStatus ?? phase, currentOutcome?.durationSec ?? elapsedSec,
+      event.seq, event.timeSec, event.actor, event.action, event.detail, errorReason,
+      savedCode === runCode ? "SAVED" : "LOCAL_ONLY"
     ]);
-    const csvContent =
-      "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${runCode}-events.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    download("\uFEFF" + [headers, ...rows].map(row => row.map(hriCsvCell).join(",")).join("\n"), `${runCode}-events.csv`, "text/csv;charset=utf-8");
   };
 
-  const handleCopySummary = () => {
-    const summaryText = [
-      `[M01 · HumanoidTH HRI Living Lab Run Summary]`,
-      `Run ID: ${runCode}`,
-      `Robot Model (Atlas): ${robot?.canonicalName || requestedRobotId} (${robot?.id || "N/A"})`,
-      `Scene Version: ${SCENE_VERSION}`,
-      `Simulation Mode: ${SIMULATION_MODE}`,
-      `Terminal Status: ${currentOutcome?.terminalStatus || phase}`,
-      `ผ่านกรณีทดสอบ (Test Case Passed): ${currentOutcome?.testCasePassed ? "ใช่ (PASS)" : "กำลังดำเนินการ"}`,
-      `ภารกิจนำทางสำเร็จ (Navigation Succeeded): ${currentOutcome?.navigationSucceeded ? "สำเร็จ (YES)" : "ไม่สำเร็จ/ไม่ได้นำทาง (NO)"}`,
-      `Elapsed Time: ${elapsedSec} วินาที`,
-      `Events Recorded: ${events.length} เหตุการณ์`
-    ].join("\n");
-
-    navigator.clipboard.writeText(summaryText);
-    setCopiedSummary(true);
-    setTimeout(() => setCopiedSummary(false), 2500);
+  const handleCopySummary = async () => {
+    try {
+      await navigator.clipboard.writeText([
+        "M01 · HRI Simulation", runCode, run?.robotName, sceneVersion, simulationMode,
+        currentOutcome?.terminalStatus ?? phase,
+        `Test case passed: ${currentOutcome?.testCasePassed ?? false}`,
+        `Navigation succeeded: ${currentOutcome?.navigationSucceeded ?? false}`,
+        `Interaction duration: ${currentOutcome?.durationSec ?? elapsedSec}s (includes user decision time)`,
+        `Persistence: ${savedCode === runCode ? "SAVED" : "LOCAL_ONLY"}`
+      ].join("\n"));
+      setCopiedSummary(true);
+    } catch { setToastNotice("คัดลอกไม่สำเร็จ กรุณาส่งออก JSON หรือ CSV แทน"); }
   };
+
+  const verificationRuns = savedRuns.filter(item => item.robotId === requestedRobotId && item.sceneVersion === sceneVersion && item.simulationMode === simulationMode);
+  const observedRuns = currentOutcome && run && !verificationRuns.some(item => item.runCode === runCode)
+    ? [{ ...run, ...currentOutcome }, ...verificationRuns] : verificationRuns;
 
   // Compute SVG robot position along the 2D floorplan
   // Start Reception: (110, 175) -> Main Corridor -> Activity Room A-102: (510, 105)
   // Staff Handoff Counter: (290, 260)
   const robotCoords = useMemo(() => {
     if (phase === "HANDOFF_STAFF") {
-      return { x: 290, y: 248, velocity: "0.0 m/s", zone: "เคาน์เตอร์เจ้าหน้าที่ (Staff Counter)" };
+      return { x: 290, y: 248, zone: "เคาน์เตอร์เจ้าหน้าที่ (Staff Counter)" };
     }
     if (phase === "ERROR_RECOVERY") {
-      return { x: 110, y: 175, velocity: "0.0 m/s", zone: "โหมดกู้คืนระบบ (Fault Recovery)" };
+      return { x: 110, y: 175, zone: "โหมดกู้คืนระบบ (Fault Recovery)" };
     }
     if (robotProgress <= 0) {
-      return { x: 110, y: 175, velocity: "0.0 m/s", zone: "จุดต้อนรับ (Reception Zone)" };
+      return { x: 110, y: 175, zone: "จุดต้อนรับ (Reception Zone)" };
     }
     if (robotProgress >= 100) {
-      return { x: 510, y: 105, velocity: "0.0 m/s", zone: "ห้องกิจกรรมบำบัด A-102" };
+      return { x: 510, y: 105, zone: "ห้องกิจกรรมบำบัด A-102" };
     }
     // Interpolate along L-shaped path: (110,175) -> (370,175) for 0..65%, then (370,175) -> (510,105) for 65..100%
     if (robotProgress <= 65) {
       const ratio = robotProgress / 65;
       const x = Math.round(110 + ratio * (370 - 110));
-      return { x, y: 175, velocity: "0.8 m/s", zone: "โถงทางเดินหลัก (Main Corridor)" };
+      return { x, y: 175, zone: "โถงทางเดินหลัก (Main Corridor)" };
     }
     const ratio = (robotProgress - 65) / 35;
     const x = Math.round(370 + ratio * (510 - 370));
     const y = Math.round(175 + ratio * (105 - 175));
-    return { x, y, velocity: "0.6 m/s", zone: "ทางเข้าห้องกิจกรรม A-102" };
+    return { x, y, zone: "ทางเข้าห้องกิจกรรม A-102" };
   }, [phase, robotProgress]);
 
   const statusToneClass = useMemo(() => {
@@ -694,7 +300,7 @@ export default function HriLabClient({
   }, [phase]);
 
   return (
-    <div className={styles.console}>
+    <div className={styles.console} lang="th">
       {/* 1. Top Navigation & Model Switcher Strip */}
       <div className={styles.topBar}>
         <div className={styles.navGroup}>
@@ -714,7 +320,8 @@ export default function HriLabClient({
             <span>สลับรุ่นหุ่นยนต์จากทะเบียน:</span>
             <select
               className={styles.switcherSelect}
-              value={robot?.id || requestedRobotId}
+              disabled={isSavingRun}
+              value={robot?.id || "__invalid_test__"}
               onChange={(e) => {
                 const nextId = e.target.value;
                 if (nextId === "__invalid_test__") {
@@ -829,7 +436,7 @@ export default function HriLabClient({
               <Compass size={13} />
               สถานการณ์จำลอง HRI (Simulation Scenario)
             </span>
-            <span className={styles.monoTag}>{SCENE_VERSION}</span>
+            <span className={styles.monoTag}>{sceneVersion}</span>
           </div>
 
           <h2 className={styles.simTitle}>
@@ -865,7 +472,7 @@ export default function HriLabClient({
               แผนผังจุดต้อนรับศูนย์สุขภาวะ (Wellness Center Floorplan)
             </h2>
             <span className={styles.telemetryMeta}>
-              พิกัดหุ่นยนต์: X={robotCoords.x}m · Y={robotCoords.y}m · ความเร็ว {robotCoords.velocity}
+              ตำแหน่งไอคอน: X={robotCoords.x} · Y={robotCoords.y} (หน่วยภาพ SVG ไม่ใช่เมตร)
             </span>
           </div>
 
@@ -1094,10 +701,10 @@ export default function HriLabClient({
           </div>
 
           {/* Current Robot Speech / System State Readout */}
-          <div className={`${styles.statusReadout} ${statusToneClass}`} role="region" aria-live="polite">
+          <div className={`${styles.statusReadout} ${statusToneClass}`} role="status" aria-label="สถานะการจำลอง" aria-live="polite">
             <div className={styles.statusTopRow}>
               <span>สถานะปัจจุบัน: {currentOutcome?.terminalStatus || phase}</span>
-              <span>T+{elapsedSec.toFixed(1)}s</span>
+              <span aria-hidden="true">T+{elapsedSec.toFixed(1)}s</span>
             </div>
 
             {phase === "GREETING" && (
@@ -1128,7 +735,7 @@ export default function HriLabClient({
                   ภารกิจนำทางสำเร็จ: ถึงหน้าห้องกิจกรรมบำบัด A-102 เรียบร้อยแล้ว
                 </h3>
                 <p className={styles.statusDescription}>
-                  ผ่านกรณีทดสอบที่ 1 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = สำเร็จ)
+                  {currentOutcome?.summaryTh || "ยังยืนยันลำดับเหตุการณ์ไม่ได้"}
                 </p>
               </>
             )}
@@ -1139,7 +746,7 @@ export default function HriLabClient({
                   ส่งต่อเจ้าหน้าที่ประจำเคาน์เตอร์ต้อนรับเรียบร้อยแล้ว
                 </h3>
                 <p className={styles.statusDescription}>
-                  ผ่านกรณีทดสอบที่ 2 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = ไม่ได้เริ่มนำทาง)
+                  {currentOutcome?.summaryTh || "ยังยืนยันลำดับเหตุการณ์ไม่ได้"} · ภารกิจนำทางไม่สำเร็จ
                 </p>
               </>
             )}
@@ -1147,10 +754,10 @@ export default function HriLabClient({
             {phase === "CANCELLED" && (
               <>
                 <h3 className={styles.statusHeadline}>
-                  ผู้ใช้ยกเลิกคำขอ · หุ่นยนต์หยุดและกลับสู่จุดพักอย่างปลอดภัย
+                  ผู้ใช้ยกเลิกคำขอ · ไอคอนหุ่นหยุดและกลับสู่จุดพักในฉากจำลอง
                 </h3>
                 <p className={styles.statusDescription}>
-                  ผ่านกรณีทดสอบที่ 3 (ผ่านกรณีทดสอบ = ใช่, ภารกิจนำทางสำเร็จ = ยกเลิกก่อนถึงปลายทาง)
+                  {currentOutcome?.summaryTh || "ยังยืนยันลำดับเหตุการณ์ไม่ได้"} · ยกเลิกก่อนถึงปลายทาง
                 </p>
               </>
             )}
@@ -1173,7 +780,7 @@ export default function HriLabClient({
               type="button"
               className={styles.actionBtnPrimary}
               onClick={handleStartNavigation}
-              disabled={!robot || phase === "GUIDING" || phase === "ERROR_RECOVERY"}
+              disabled={!robot || phase !== "GREETING"}
             >
               <span className={styles.btnLabelGroup}>
                 <Navigation size={16} />
@@ -1186,7 +793,7 @@ export default function HriLabClient({
               type="button"
               className={styles.actionBtnSecondary}
               onClick={handleRequestStaff}
-              disabled={phase === "ERROR_RECOVERY"}
+              disabled={!robot || !canAct}
             >
               <span className={styles.btnLabelGroup}>
                 <UserCheck size={16} />
@@ -1199,7 +806,7 @@ export default function HriLabClient({
               type="button"
               className={styles.actionBtnDanger}
               onClick={handleCancelInteraction}
-              disabled={phase === "ERROR_RECOVERY"}
+              disabled={!robot || !canAct}
             >
               <span className={styles.btnLabelGroup}>
                 <XCircle size={16} />
@@ -1218,6 +825,7 @@ export default function HriLabClient({
                   type="button"
                   className={styles.recoveryBtn}
                   onClick={handleResetSimulation}
+                  disabled={isSavingRun || canAct}
                 >
                   ลองโหลดใหม่ (Retry)
                 </button>
@@ -1233,6 +841,7 @@ export default function HriLabClient({
                 className={styles.actionBtnGhost}
                 style={{ flex: 1 }}
                 onClick={handleResetSimulation}
+                  disabled={isSavingRun || canAct}
               >
                 <span className={styles.btnLabelGroup}>
                   <RefreshCw size={14} />
@@ -1244,6 +853,7 @@ export default function HriLabClient({
                 className={styles.actionBtnGhost}
                 style={{ flex: 1 }}
                 onClick={handleSimulateLoadFailure}
+                disabled={!canAct}
               >
                 <span className={styles.btnLabelGroup}>
                   <AlertTriangle size={14} />
@@ -1258,10 +868,18 @@ export default function HriLabClient({
       {/* 4. Bottom Verification & Telemetry Ledger */}
       <section className={styles.ledgerSection} aria-label="บันทึกผลการรันและการทวนสอบ">
         <div className={styles.tabToolbar}>
-          <div className={styles.tabList} role="tablist">
+          <div className={styles.tabList} role="tablist" aria-label="รายงานการจำลอง"
+            onKeyDown={event => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+              const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+              const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+              event.preventDefault(); tabs[next]?.focus(); tabs[next]?.click();
+            }}>
             <button
               type="button"
               role="tab"
+              id="hri-tab-log" aria-controls="hri-panel-log" tabIndex={activeBottomTab === "log" ? 0 : -1}
               aria-selected={activeBottomTab === "log"}
               className={`${styles.tabBtn} ${activeBottomTab === "log" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveBottomTab("log")}
@@ -1272,6 +890,7 @@ export default function HriLabClient({
             <button
               type="button"
               role="tab"
+              id="hri-tab-verification" aria-controls="hri-panel-verification" tabIndex={activeBottomTab === "verification" ? 0 : -1}
               aria-selected={activeBottomTab === "verification"}
               className={`${styles.tabBtn} ${activeBottomTab === "verification" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveBottomTab("verification")}
@@ -1282,6 +901,7 @@ export default function HriLabClient({
             <button
               type="button"
               role="tab"
+              id="hri-tab-architecture" aria-controls="hri-panel-architecture" tabIndex={activeBottomTab === "architecture" ? 0 : -1}
               aria-selected={activeBottomTab === "architecture"}
               className={`${styles.tabBtn} ${activeBottomTab === "architecture" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveBottomTab("architecture")}
@@ -1292,20 +912,28 @@ export default function HriLabClient({
           </div>
 
           <div className={styles.exportGroup}>
-            <button type="button" className={styles.utilityBtn} onClick={handleCopySummary}>
+            <button type="button" className={styles.utilityBtn} onClick={handleCopySummary} disabled={!run}>
               {copiedSummary ? <Check size={14} /> : <Copy size={14} />}
               {copiedSummary ? "คัดลอกสรุปแล้ว" : "คัดลอกสรุปผล"}
             </button>
-            <button type="button" className={styles.utilityBtn} onClick={handleExportJson}>
+            <button type="button" className={styles.utilityBtn} onClick={handleExportJson} disabled={!run}>
               <Download size={14} />
               ส่งออก JSON
             </button>
-            <button type="button" className={styles.utilityBtn} onClick={handleExportCsv}>
+            <button type="button" className={styles.utilityBtn} onClick={handleExportCsv} disabled={!run}>
               <FileSpreadsheet size={14} />
               ส่งออก CSV
             </button>
           </div>
         </div>
+
+        <p className={styles.measurementNote}>เวลานี้เป็นเวลาปฏิสัมพันธ์ในฉากจำลอง รวมเวลาที่ผู้ใช้เลือก ไม่ใช่ความเร็วหรือผลทดสอบหุ่นจริง การส่งต่อและผู้รับบริการเป็นข้อมูลสมมติ ไม่มีข้อสรุปด้านสุขภาพจากเดโมนี้</p>
+        {initialHistoryError && <p role="alert">{initialHistoryError}</p>}
+        {saveError && <div role="alert" className={styles.saveNotice}>
+          <p>{saveError}</p>
+          <button type="button" className={styles.utilityBtn} disabled={isSavingRun} onClick={() => run && void persistRunToBackend(run)}>ลองบันทึกอีกครั้ง</button>
+        </div>}
+        <p role="status" aria-label="สถานะการบันทึก">{isSavingRun ? "กำลังบันทึก Run Log…" : savedCode === runCode ? "บันทึก Run Log ในฐานข้อมูลแล้ว" : currentOutcome ? "Run Log อยู่ในหน้านี้ ยังไม่ได้ยืนยันการบันทึกฐานข้อมูล" : "กำลังรอการตัดสินใจของผู้ใช้"}</p>
 
         {/* Summary Metrics Strip: Explicitly separates Test Case Passed vs Navigation Succeeded */}
         <dl className={styles.metricsStrip}>
@@ -1317,13 +945,15 @@ export default function HriLabClient({
           </div>
           <div className={styles.metricCell}>
             <dt>เวอร์ชันฉาก / โหมดจำลอง</dt>
-            <dd>{SCENE_VERSION}</dd>
+            <dd>{sceneVersion}</dd>
           </div>
           <div className={styles.metricCell}>
             <dt>ผ่านกรณีทดสอบ (Test Case Passed)</dt>
             <dd>
               {currentOutcome ? (
-                <span className={styles.passPill}>ผ่านเกณฑ์ (PASS)</span>
+                <span className={currentOutcome.testCasePassed ? styles.passPill : styles.neutralPill}>
+                  {currentOutcome.testCasePassed ? "ลำดับเหตุการณ์ตรงตามคาด (PASS)" : "ลำดับเหตุการณ์ไม่ตรงตามคาด (FAIL)"}
+                </span>
               ) : (
                 <span className={styles.neutralPill}>รอเลือกการตัดสินใจ</span>
               )}
@@ -1355,7 +985,7 @@ export default function HriLabClient({
 
         {/* Tab 1: Ordered Event Log Table */}
         {activeBottomTab === "log" && (
-          <>
+          <div role="tabpanel" id="hri-panel-log" aria-labelledby="hri-tab-log" tabIndex={0}>
             <div className={styles.tableWrap}>
               <table className={styles.dataTable}>
                 <thead>
@@ -1399,135 +1029,38 @@ export default function HriLabClient({
                     className={`${styles.historyChip} ${
                       item.runCode === runCode ? styles.historyChipActive : ""
                     }`}
-                    onClick={() => {
-                      setRunCode(item.runCode);
-                      setEvents(item.events);
-                      setElapsedSec(item.durationSec);
-                      if (item.testCaseType === "NAVIGATION_SUCCESS") {
-                        setPhase("ARRIVED");
-                        setRobotProgress(100);
-                      } else if (item.testCaseType === "STAFF_HANDOFF") {
-                        setPhase("HANDOFF_STAFF");
-                        setRobotProgress(0);
-                      } else if (item.testCaseType === "USER_CANCEL") {
-                        setPhase("CANCELLED");
-                        setRobotProgress(0);
-                      } else {
-                        setPhase("ERROR_RECOVERY");
-                        setErrorReason(item.errorReason);
-                      }
-                    }}
+                    disabled={canAct || isSavingRun}
+                    onClick={() => openSavedRun(item)}
                   >
                     {item.runCode} · {item.terminalStatus} ({item.durationSec}s)
                   </button>
                 ))}
               </div>
             )}
-          </>
+          </div>
         )}
 
-        {/* Tab 2: 4-Case Verification Matrix */}
         {activeBottomTab === "verification" && (
-          <div className={styles.tableWrap}>
+          <div className={styles.tableWrap} role="tabpanel" id="hri-panel-verification" aria-labelledby="hri-tab-verification" tabIndex={0}>
+            <p>ผลจากรุ่น เวอร์ชันฉาก และโหมดเดียวกัน: {observedRuns.filter(item => hriOutcome(item.events, item.errorReason)?.testCasePassed).length} / {observedRuns.length} รอบมีลำดับเหตุการณ์ตรงตามคาด (รวมรอบในหน้านี้ที่ยังไม่บันทึก)</p>
             <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th>กรณีทดสอบ</th>
-                  <th>อินพุต / ขั้นตอนทดสอบ</th>
-                  <th>ผลที่คาดหวัง (Expected)</th>
-                  <th>ผลที่วัดได้จริงในระบบ (Actual)</th>
-                  <th>การแยกสถานะผลลัพธ์</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <strong>กรณีที่ 1 · เส้นทางหลักสำเร็จ</strong>
-                  </td>
-                  <td>
-                    เลือกหุ่นจาก <code>/robots</code> กด <code>ทดลอง HRI</code> แล้วเลือก{" "}
-                    <code>ให้หุ่นช่วยนำทาง</code>
-                  </td>
-                  <td>
-                    แสดงชื่อรุ่นและแหล่งอ้างอิงจริง, เปลี่ยนสถานะจากจุดต้อนรับไปถึงปลายทาง และสร้าง Run Log พร้อมเวลาที่ใช้
-                  </td>
-                  <td>
-                    แสดงรุ่น <strong>{robot?.canonicalName || requestedRobotId}</strong>, เคลื่อนที่บนแผนผัง 2D ถึงห้อง A-102 และบันทึก Run Log ลง PostgreSQL
-                  </td>
-                  <td>
-                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
-                    <span className={styles.passPill}>นำทางสำเร็จ = ใช่</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>กรณีที่ 2 · ขอเจ้าหน้าที่</strong>
-                  </td>
-                  <td>
-                    เริ่มจากจุดต้อนรับเดียวกัน แล้วเลือก <code>ขอเจ้าหน้าที่</code>
-                  </td>
-                  <td>
-                    บันทึกเหตุการณ์ส่งต่อเจ้าหน้าที่และจบการทดลองในสถานะส่งต่อเจ้าหน้าที่โดยไม่ค้าง
-                  </td>
-                  <td>
-                    สร้างเหตุการณ์ <code>NOTIFY_RECEPTION_STAFF</code> และ{" "}
-                    <code>STAFF_ACKNOWLEDGED</code> พร้อมจบที่สถานะ{" "}
-                    <code>HANDED_OFF_TO_STAFF</code>
-                  </td>
-                  <td>
-                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
-                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>กรณีที่ 3 · ยกเลิกคำขอ</strong>
-                  </td>
-                  <td>
-                    เลือก <code>ยกเลิก</code> ระหว่างที่หุ่นกำลังเสนอความช่วยเหลือหรือกำลังนำทาง
-                  </td>
-                  <td>
-                    หยุดขั้นตอนทันที บันทึกการยกเลิกใน Run Log และแสดงทางเลือกเริ่มใหม่หรือกลับหน้า{" "}
-                    <code>/robots</code>
-                  </td>
-                  <td>
-                    หยุดตัวจับเวลาทันที บันทึก <code>SAFE_STANDBY_RETURN</code> สถานะ{" "}
-                    <code>CANCELLED_BY_USER</code>
-                  </td>
-                  <td>
-                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
-                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <strong>กรณีที่ 4 · โหลดไม่สำเร็จ / กู้คืน</strong>
-                  </td>
-                  <td>
-                    เปิดด้วยรหัสรุ่นที่ไม่ถูกต้อง หรือกดปุ่ม{" "}
-                    <code>จำลองกรณีโหลดไม่สำเร็จ</code>
-                  </td>
-                  <td>
-                    แจ้งสาเหตุชัดเจน ไม่ปล่อยหน้าว่าง และมีปุ่มลองใหม่หรือกลับไปหน้า{" "}
-                    <code>/robots</code>
-                  </td>
-                  <td>
-                    แสดงแถบแจ้งเตือนสาเหตุพร้อมปุ่ม <code>ลองโหลดใหม่ (Retry)</code> และลิงก์กลับ{" "}
-                    <code>/robots</code>
-                  </td>
-                  <td>
-                    <span className={styles.passPill}>ผ่านกรณีทดสอบ = ใช่</span>{" "}
-                    <span className={styles.neutralPill}>นำทางสำเร็จ = ไม่ใช่</span>
-                  </td>
-                </tr>
-              </tbody>
+              <thead><tr><th>กรณีทดสอบ</th><th>ผลที่คาดหวัง</th><th>ผลที่พบจริงล่าสุด</th><th>ผ่านกรณี / นำทางสำเร็จ</th></tr></thead>
+              <tbody>{HRI_CASES.map(definition => {
+                const observed = observedRuns.find(item => item.testCaseType === definition.type);
+                const verified = observed ? hriOutcome(observed.events, observed.errorReason) : null;
+                return <tr key={definition.type}>
+                  <td>{definition.label}</td><td>{definition.expected}</td>
+                  <td>{observed ? <>{observed.runCode}<br />{observed.terminalStatus} · {verified?.durationSec ?? observed.durationSec}s</> : "ยังไม่ได้ทดสอบ (Not run)"}</td>
+                  <td>{observed ? <>{verified?.testCasePassed ? "PASS" : "FAIL"} / {verified?.navigationSucceeded ? "YES" : "NO"}</> : "—"}</td>
+                </tr>;
+              })}</tbody>
             </table>
           </div>
         )}
 
         {/* Tab 3: Scope & Expansion Notes */}
         {activeBottomTab === "architecture" && (
-          <div className={styles.docSplit}>
+          <div className={styles.docSplit} role="tabpanel" id="hri-panel-architecture" aria-labelledby="hri-tab-architecture" tabIndex={0}>
             <div className={styles.docColumn}>
               <h3>สิ่งที่ทำจริงในรอบนี้ (In-Scope M01)</h3>
               <ul className={styles.docList}>

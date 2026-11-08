@@ -1,8 +1,43 @@
 # แผนผังไฟล์โครงการ Thailand Humanoid Atlas
 
-ตรวจสอบไฟล์ที่ติดตามโดย Git แล้วทั้งหมด 155 ไฟล์ ณ วันที่จัดทำเอกสารนี้
+ตรวจสอบไฟล์ที่ติดตามโดย Git แล้วทั้งหมด 155 ไฟล์ ณ วันที่จัดทำเอกสารฉบับเดิม (ไม่ใช่จำนวนไฟล์ปัจจุบัน)
+
+## อัปเดตระบบ subscription — 8 พฤศจิกายน 2026
+
+ระบบปัจจุบันมี Free / Atlas Plus / Organization ในหน้า `/subscribe` โดยสิทธิ์ Dashboard และ Analytics ใช้แผน `ATLAS_DASHBOARD` ในฐานข้อมูล การชำระเงินจริงยังไม่เชื่อมต่อ
+
+- `prisma/schema.prisma` และ `prisma/migrations/20261108010000_add_subscriptions/migration.sql` — ตาราง Subscription, สถานะ และวันหมดอายุ
+- `lib/session.ts` — อ่านบัญชีปัจจุบันและแยกบัญชีทดลองใน development
+- `lib/subscription.ts` — อ่านสิทธิ์และสถานะสมาชิก; อนุญาตเฉพาะแผน Dashboard ที่ ACTIVE และยังไม่หมดอายุ หรือบัญชีแอดมิน
+- `lib/subscription-policy.ts` — กฎตรวจสิทธิ์ สถานะหมดอายุ และแปลงวันสิ้นสุดตามเวลาไทย
+- `lib/subscription-admin.ts` — ยืนยันรหัสผ่านแอดมินจาก environment ก่อนเปลี่ยนสิทธิ์
+- `app/subscribe/page.tsx`, `app/subscribe/Subscription.module.css` — หน้าเลือกแผนและทดลองสมาชิกใน development
+- `app/admin/subscriptions/page.tsx` — ค้นหาและแสดงรายการสมาชิกสูงสุด 50 รายการล่าสุด
+- `app/admin/subscriptions/SubscriptionForm.tsx`, `Subscriptions.module.css` — ฟอร์มสองภาษาสำหรับเปิด/ต่ออายุ/ยกเลิกสิทธิ์ พร้อมสถานะรอและข้อความผลลัพธ์
+- `app/admin/subscriptions/actions.ts` — บันทึกสิทธิ์แบบ MANUAL โดยใช้รายการเดิมต่อบัญชี และยกเลิกเฉพาะสิทธิ์ MANUAL
+- `app/profile/SubscriptionStatus.tsx` — สถานะสมาชิก วันสิ้นสุดสิทธิ์ และลิงก์ Dashboard/แผนสมาชิก/จัดการสมาชิก
+- `app/register/page.tsx`, `app/profile/RegisterAccountForm.tsx` — สมัครบัญชีบุคคลหรือบริษัท
+- `test/subscription.test.ts` — กรณีหมดอายุ ยกเลิก ผิดแผน วันสิ้นสุดเวลาไทย และการยืนยันรหัสผ่านแอดมิน
+- `docs/subscriptions.md` — วิธีตั้งค่า ใช้งาน ทดสอบ และข้อจำกัดระบบยืนยันตัวตนเดิม
+
+ส่วนแผนผังเดิมด้านล่างยังไม่ได้ครอบคลุมทุกฟีเจอร์ที่เพิ่มภายหลัง เช่น simulator, company leaderboard และ community
 
 ## โครงการนี้ทำอะไร
+
+### อัปเดตโมดูลส่งผลงานแข่งขัน — 8 พฤศจิกายน 2026
+
+- `app/challenges/[id]/ChallengeDetailClient.tsx` — ฟอร์มส่งผลงานที่รอการบันทึกจริง พร้อม pending/error/receipt แทนการสุ่มคะแนนและเก็บผลงานใน localStorage
+- `app/challenges/[id]/useChallengeEntries.ts` — โหลดประวัติส่วนตัว ส่งคำขอ และรักษา request ID เดิมเมื่อ retry
+- `app/challenges/[id]/EntryHistory.tsx` — ประวัติผลงานพร้อมเลขรับ สถานะ และข้อความไทย/อังกฤษ
+- `app/api/challenges/[id]/submit/route.ts` — GET ประวัติส่วนตัว / POST ส่งผลงาน ตรวจบัญชี วันปิดรับ และคำขอซ้ำ
+- `lib/challenge-entry-policy.ts` — validation ของผลงาน/ลิงก์ วันปิดรับเวลาไทย และตรวจว่าการ retry ตรงกับรายการเดิม
+- `prisma/migrations/20261108020000_challenge_entry_receipts/migration.sql` — เพิ่มเจ้าของผลงาน request key และลิงก์วิดีโอ โดยรักษารายการเดิม
+- `test/challenge-entry.test.ts`, `tests-node/challenge-entries.spec.ts` — ทดสอบกฎและ flow ส่งผลงาน
+- `docs/challenge-entries.md` — API, migration, วิธีตรวจสอบ และงานต่อไป (คิวประเมิน/Leaderboard จริง)
+
+แค็ตตาล็อกการแข่งขันและ Leaderboard เดิมยังใช้ข้อมูลตัวอย่าง โดยเพิ่มป้ายระบุแล้ว ส่วนประวัติผลงานใหม่แสดงเฉพาะรายการที่ API รับบันทึก
+
+### ภาพรวม
 
 **Thailand Humanoid Atlas** คือแพลตฟอร์มวิจัยแบบสองภาษา (ไทย/อังกฤษ) สำหรับรวบรวม วิเคราะห์ และเผยแพร่ข้อมูลระบบนิเวศหุ่นยนต์ humanoid, social และ service robot ในประเทศไทย โดยครอบคลุม 4 มิติหลัก:
 

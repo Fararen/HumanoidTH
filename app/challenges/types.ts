@@ -1,4 +1,11 @@
 export type ChallengeType = "OFFICIAL" | "COMMUNITY";
+export interface ChallengeEntryReceipt {
+  id: string;
+  solutionTitle: string;
+  teamName: string;
+  status: string;
+  submittedAt: string;
+}
 export type ChallengeMode = "PROJECT_SHOWCASE" | "DATASET_BENCHMARK" | "SIMULATION";
 export type ChallengeStatus = "ACTIVE" | "UPCOMING" | "COMPLETED";
 export type KaggleCategory = "Featured" | "Research" | "Community" | "Getting Started";

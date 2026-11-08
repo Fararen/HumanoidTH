@@ -56,6 +56,7 @@ Thumbs.db
 *humamnoidth.ui/
 .vercel
 .env*
+!.env.example
 
 # Local account inventory (may contain environment-specific account references)
 ACCOUNT.local.md

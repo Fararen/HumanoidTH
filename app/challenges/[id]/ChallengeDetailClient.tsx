@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, Fragment } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Challenge, Submission } from "../types";
+import { useChallengeEntries } from "./useChallengeEntries";
+import EntryHistory, { entryMessage } from "./EntryHistory";
 import {
   Trophy,
   ArrowLeft,
@@ -34,14 +36,18 @@ import {
 interface ChallengeDetailClientProps {
   challenge: Challenge;
   initialSubmissions: Submission[];
+  canSubmit: boolean;
+  lang: "en" | "th";
 }
 
 export default function ChallengeDetailClient({
   challenge,
-  initialSubmissions
+  initialSubmissions,
+  canSubmit,
+  lang
 }: ChallengeDetailClientProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "data" | "leaderboard" | "rules">("overview");
-  const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions);
+  const submissions = initialSubmissions;
   const [leaderboardScope, setLeaderboardScope] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
 
@@ -59,115 +65,29 @@ export default function ChallengeDetailClient({
     setMounted(true);
   }, []);
 
-  // Load user submissions from localStorage on mount
-  useEffect(() => {
-    try {
-      const storageKey = `humanoidth_submissions_${challenge.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const userSubs: Submission[] = JSON.parse(saved);
-        const existingIds = new Set(initialSubmissions.map((s) => s.id));
-        const newOnes = userSubs.filter((s) => !existingIds.has(s.id));
-        const combined = [...newOnes, ...initialSubmissions].sort((a, b) => b.totalScore - a.totalScore);
-        const ranked: Submission[] = combined.map((item, idx) => ({
-          ...item,
-          rank: idx + 1,
-          awardBadge: (idx === 0 ? "GOLD" : idx === 1 ? "SILVER" : idx === 2 ? "BRONZE" : item.awardBadge) as Submission["awardBadge"]
-        }));
-        setSubmissions(ranked);
-      }
-    } catch (e) {
-      console.error("Failed to load local submissions:", e);
-    }
-  }, [challenge.id, initialSubmissions]);
-
-  // Handle new submission
-  const handleSubmitEntry = (e: React.FormEvent) => {
+  const { entries, historyCode, errorCode, isSubmitting, loadEntries, submit } = useChallengeEntries(challenge.id);
+  const th = lang === "th";
+  const handleSubmitEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!titleInput.trim() || !teamInput.trim()) return;
-
-    try {
-      fetch(`/api/challenges/${challenge.id}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teamName: teamInput.trim(),
-          contactEmail: "team@humanoid.th",
-          solutionTitle: titleInput.trim(),
-          description: descriptionInput.trim(),
-          repoUrl: githubInput.trim(),
-          dockerImage: videoInput.trim()
-        })
-      }).catch(() => {});
-    } catch {}
-
-    const rubricScores: Record<string, number> = {};
-    let calculatedTotal = 0;
-    challenge.rubric.forEach((r) => {
-      const score = Math.round((r.weight * (0.84 + Math.random() * 0.14)) * 10) / 10;
-      rubricScores[r.id] = score;
-      calculatedTotal += score;
+    if (!canSubmit || historyCode !== "READY") return;
+    const entry = await submit({
+      teamName: teamInput.trim(), solutionTitle: titleInput.trim(),
+      description: descriptionInput.trim(), repoUrl: githubInput.trim(), videoUrl: videoInput.trim()
     });
-
-    const finalScore = Math.round(calculatedTotal * 10) / 10;
-
-    const newSub: Submission = {
-      id: `user-sub-${Date.now()}`,
-      challengeId: challenge.id,
-      rank: 0,
-      rankChange: 3,
-      teamName: teamInput.trim(),
-      teamAvatarEmoji: "R1",
-      title: titleInput.trim(),
-      description: descriptionInput.trim() || "No detailed description provided.",
-      submittedAt: new Date().toISOString().split("T")[0],
-      lastSubmitTime: "just now",
-      githubUrl: githubInput.trim() || undefined,
-      videoUrl: videoInput.trim() || undefined,
-      totalScore: finalScore,
-      scoreDisplay: (finalScore / 100).toFixed(4),
-      entriesCount: 1,
-      rubricScores,
-      status: "APPROVED",
-      votesCount: 1
-    };
-
-    const updated = [newSub, ...submissions].sort((a, b) => b.totalScore - a.totalScore);
-    const ranked: Submission[] = updated.map((item, idx) => ({
-      ...item,
-      rank: idx + 1,
-      awardBadge: (idx === 0 ? "GOLD" : idx === 1 ? "SILVER" : idx === 2 ? "BRONZE" : (idx < 5 ? "FINALIST" : undefined)) as Submission["awardBadge"]
-    }));
-
-    setSubmissions(ranked);
-
-    try {
-      const storageKey = `humanoidth_submissions_${challenge.id}`;
-      const saved = localStorage.getItem(storageKey);
-      const existing: Submission[] = saved ? JSON.parse(saved) : [];
-      localStorage.setItem(storageKey, JSON.stringify([newSub, ...existing]));
-    } catch (err) {
-      console.error("Failed to save to localStorage:", err);
-    }
-
+    if (!entry) return;
     setTitleInput("");
     setTeamInput("");
     setGithubInput("");
     setVideoInput("");
     setDescriptionInput("");
     setIsSubmitModalOpen(false);
-    setActiveTab("leaderboard");
-    setSuccessBanner(`ส่งผลงาน "${newSub.title}" สำเร็จ คะแนนพรีวิวอยู่ที่ ${newSub.scoreDisplay} (${newSub.totalScore} pts) และถูกจัดอันดับบน Leaderboard เรียบร้อยแล้ว`);
-  };
-
-  const handleVote = (subId: string) => {
-    setSubmissions((prev) =>
-      prev.map((s) => (s.id === subId ? { ...s, votesCount: s.votesCount + 1 } : s))
-    );
+    setSuccessBanner(th
+      ? `รับผลงาน "${entry.solutionTitle}" แล้ว — รอตรวจสอบ เลขรับผลงาน: ${entry.id}`
+      : `Received "${entry.solutionTitle}" — awaiting review. Receipt: ${entry.id}`);
   };
 
   const isOfficial = challenge.type === "OFFICIAL";
-  const isActive = challenge.status === "ACTIVE";
+  const isActive = canSubmit;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -192,6 +112,7 @@ export default function ChallengeDetailClient({
       {/* 2. Success Banner Notification */}
       {successBanner && (
         <div
+          role="status"
           style={{
             padding: "12px 18px",
             background: "#ecfdf5",
@@ -216,6 +137,10 @@ export default function ChallengeDetailClient({
           </button>
         </div>
       )}
+
+      <p className="notice">{th ? "รายละเอียดการแข่งขันและ Leaderboard เป็นข้อมูลตัวอย่างของระบบ ส่วนประวัติผลงานด้านล่างแสดงเฉพาะรายการที่เซิร์ฟเวอร์รับแล้ว" : "Competition details and leaderboards are example content. Your entry history below shows only server-confirmed receipts."}</p>
+
+      <EntryHistory entries={entries} code={historyCode} th={th} onRetry={() => { void loadEntries(); }} />
 
       {/* 3. Kaggle-Authentic Header (Open, Editorial, No Box Wrap) */}
       <div
@@ -582,6 +507,7 @@ export default function ChallengeDetailClient({
             </div>
 
             <button
+              disabled={!isActive}
               onClick={() => setIsSubmitModalOpen(true)}
               className="button primary"
               style={{ height: 34, fontSize: 12.5 }}
@@ -741,7 +667,8 @@ export default function ChallengeDetailClient({
                         <td style={{ textAlign: "center" }}>
                           <button
                             type="button"
-                            onClick={() => handleVote(sub.id)}
+                            disabled
+                            title={th ? "คะแนนโหวตตัวอย่าง" : "Example vote count"}
                             style={{
                               padding: "3px 8px",
                               fontSize: 11,
@@ -847,10 +774,13 @@ export default function ChallengeDetailClient({
             padding: "20px 16px",
             boxSizing: "border-box"
           }}
-          onClick={() => setIsSubmitModalOpen(false)}
+          onClick={() => { if (!isSubmitting) setIsSubmitModalOpen(false); }}
         >
           <div
             className="panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="entry-dialog-title"
             style={{
               maxWidth: 580,
               width: "100%",
@@ -864,6 +794,8 @@ export default function ChallengeDetailClient({
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              disabled={isSubmitting}
+              aria-label={th ? "ปิดแบบฟอร์ม" : "Close entry form"}
               onClick={() => setIsSubmitModalOpen(false)}
               style={{
                 position: "absolute",
@@ -881,7 +813,7 @@ export default function ChallengeDetailClient({
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <Send size={20} style={{ color: "#19523c" }} />
               <div>
-                <h2 style={{ margin: 0, fontSize: 18 }}>Make a Submission</h2>
+                <h2 id="entry-dialog-title" style={{ margin: 0, fontSize: 18 }}>{th ? "ส่งผลงานแข่งขัน" : "Make a Submission"}</h2>
                 <span className="muted" style={{ fontSize: 12 }}>
                   {challenge.title}
                 </span>
@@ -889,12 +821,16 @@ export default function ChallengeDetailClient({
             </div>
 
             <form onSubmit={handleSubmitEntry} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {historyCode !== "READY" && <p role="status">{entryMessage(historyCode, th)} <Link href="/profile">{th ? "ไปที่โปรไฟล์" : "Open profile"}</Link></p>}
+              {errorCode && <p role="alert" style={{ color: "#b42318" }}>{entryMessage(errorCode, th)}</p>}
+              <fieldset disabled={isSubmitting || historyCode !== "READY" || !canSubmit} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 14, minWidth: 0 }}>
               <label>
                 Submission Title *
                 <input
                   type="text"
                   required
                   value={titleInput}
+                  maxLength={200}
                   onChange={(e) => setTitleInput(e.target.value)}
                   placeholder="e.g. Robust SLAM with Dual LiDAR & Trajectory Smoother"
                   style={{ width: "100%", height: 36, marginTop: 4 }}
@@ -907,6 +843,7 @@ export default function ChallengeDetailClient({
                   type="text"
                   required
                   value={teamInput}
+                  maxLength={120}
                   onChange={(e) => setTeamInput(e.target.value)}
                   placeholder="e.g. RoboTech KMUTT Team"
                   style={{ width: "100%", height: 36, marginTop: 4 }}
@@ -918,6 +855,7 @@ export default function ChallengeDetailClient({
                 <input
                   type="url"
                   value={githubInput}
+                  maxLength={2048}
                   onChange={(e) => setGithubInput(e.target.value)}
                   placeholder="https://github.com/your-username/your-robotics-repo"
                   style={{ width: "100%", height: 36, marginTop: 4 }}
@@ -929,6 +867,7 @@ export default function ChallengeDetailClient({
                 <input
                   type="url"
                   value={videoInput}
+                  maxLength={2048}
                   onChange={(e) => setVideoInput(e.target.value)}
                   placeholder="https://youtu.be/..."
                   style={{ width: "100%", height: 36, marginTop: 4 }}
@@ -941,15 +880,18 @@ export default function ChallengeDetailClient({
                   rows={4}
                   required
                   value={descriptionInput}
+                  maxLength={10000}
                   onChange={(e) => setDescriptionInput(e.target.value)}
                   placeholder="Describe your algorithm architecture, simulation parameters, and key innovations..."
                   style={{ width: "100%", marginTop: 4, padding: 8 }}
                 />
               </label>
 
+              </fieldset>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsSubmitModalOpen(false)}
                   className="button"
                   style={{ height: 36 }}
@@ -958,10 +900,12 @@ export default function ChallengeDetailClient({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting || historyCode !== "READY" || !canSubmit}
+                  aria-busy={isSubmitting}
                   className="button primary"
                   style={{ height: 36, padding: "0 20px" }}
                 >
-                  Submit Prediction
+                  {isSubmitting ? (th ? "กำลังส่ง…" : "Submitting…") : (th ? "ส่งผลงาน" : "Submit entry")}
                 </button>
               </div>
             </form>

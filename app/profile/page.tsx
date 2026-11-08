@@ -7,6 +7,7 @@ import { getTranslation } from "@/lib/translations";
 import { ArrowRight, Award, BadgeCheck, BarChart3, Bot, Building2, CircleHelp, Clock3, Database, ExternalLink, ShieldCheck, UserRound, Users } from "lucide-react";
 import styles from "./Profile.module.css";
 import RegisterAccountForm from "./RegisterAccountForm";
+import SubscriptionStatus from "./SubscriptionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -176,6 +177,8 @@ export default async function ProfilePage({
           <article className={styles.statCard}><span><Clock3 size={16} aria-hidden="true" />{profileCopy.inReview}</span><strong>{inReview}</strong><small>{profileCopy.awaitingReview}</small></article>
         </div>
       </section>
+
+      <SubscriptionStatus th={lang === "th"} />
 
       {activeRole === "COMPANY" && <section className={styles.companyWorkspace}>
         <span className={styles.companyWorkspaceIcon}><Building2 size={20} aria-hidden="true" /></span>

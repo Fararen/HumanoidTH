@@ -174,6 +174,7 @@ export default async function AdminConsolePage({ searchParams }: { searchParams:
       )}
 
       <div className="toolbar" style={{ marginTop: 0 }}>
+        <Link href="/admin/subscriptions" className="button">{lang === "th" ? "จัดการสมาชิก" : "Subscriptions"}</Link>
         {collectionTabs.map((tab) => (
           <Link
             key={tab.key}

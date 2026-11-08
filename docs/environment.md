@@ -1,0 +1,28 @@
+# ตั้งค่า .env
+
+กรอกค่าที่ไฟล์ `.env` ในรากโปรเจกต์ ซึ่งถูก Git ignore ไว้ ส่วน `.env.example` เป็นแม่แบบที่แชร์ได้และต้องไม่มี key จริง
+
+| ตัวแปร | ใช้ทำอะไร |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL สำหรับแอปหลัก ต้องแก้ user/password/host/database ให้ตรงกับฐานข้อมูลของคุณ |
+| `DIRECT_DATABASE_URL` | การเชื่อมต่อโดยตรงสำหรับ Prisma migration หาก URL หลักเป็น pooled connection; ไม่ใช้ให้คงเป็น comment |
+| `ADMIN_BASIC_USER` | อีเมลสำหรับล็อกอินแอดมิน |
+| `ADMIN_BASIC_PASSWORD` | รหัสผ่านแอดมินและยืนยันการแก้สมาชิก; .env ที่สร้างให้มีรหัสสุ่มแล้ว สามารถเปลี่ยนได้ |
+| `GEMINI_API_KEY` | วิเคราะห์บทความและจัดกลุ่มตำแหน่งด้วย Gemini |
+| `YOUTUBE_API_KEY` | ดึงวิดีโอผ่าน YouTube Data API |
+| `GITHUB_TOKEN` | ยืนยันตัวตนสำหรับค้นหา GitHub repositories |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | แผนที่ Live Map; เป็น key ฝั่ง browser ให้จำกัดโดเมนและ API ที่ใช้งาน |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL` | URL เว็บไซต์สำหรับ sitemap/robots/metadata ตั้งทั้งสองตัวให้เหมือนกัน |
+| `NETWORK_GRAPH_SOURCE` | เลือก `auto`, `file`, `database` หรือ `hybrid` |
+| `NETWORK_GRAPH_IMPORT_FILE_PATH` | ตำแหน่งไฟล์ข้อมูลสำหรับกราฟ |
+| `PRISMA_LOG_LEVEL` | ใช้ `silent` เพื่อปิด Prisma logs หรือ `error` เพื่อแสดง errors ตามปกติ |
+
+เริ่มจากกรอก `DATABASE_URL` และอีเมลแอดมิน แล้วเติมเฉพาะ API keys ที่ต้องใช้ ค่า API ที่ไม่ใช้ให้ว่างไว้ ไม่ใส่ข้อความตัวอย่างแทน key เพราะโค้ดอาจมองว่าเปิดบริการนั้นแล้ว
+
+ใช้ URL PostgreSQL แบบ `postgresql://` หรือ `postgres://` ตาม adapter ปัจจุบัน ไม่ใช้ URL แบบ `prisma+postgres://` หากรหัสผ่านฐานข้อมูลมีอักขระพิเศษให้ URL-encode ส่วนนั้น และใช้การตั้งค่า SSL ตามผู้ให้บริการฐานข้อมูล
+
+Next.js โหลด `.env` ให้เอง และ Prisma CLI โหลดผ่าน `dotenv/config` รีสตาร์ต dev server หลังแก้ค่า; ค่าที่ขึ้นต้น `NEXT_PUBLIC_` ต้อง build/deploy ใหม่เมื่อแก้ใน production ไฟล์ `.env.local` หรือ environment ของเครื่องที่ตั้งไว้แล้วอาจมีลำดับความสำคัญเหนือ `.env` ใน Next.js
+
+การสร้าง `.env` ไม่ได้สร้างฐานข้อมูล บัญชีผู้ให้บริการ หรือเปิด API ให้อัตโนมัติ ระบบชำระเงินและอีเมลยังไม่ได้เชื่อมต่อ จึงยังไม่มี key สำหรับบริการเหล่านั้นในแม่แบบ
+
+อย่านำ URL PostgreSQL นี้ไปใช้กับ Python รุ่นเก่าใน `src/` ซึ่งรองรับ SQLite และมี settings แยกจากแอปหลัก

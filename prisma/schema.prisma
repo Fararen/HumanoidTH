@@ -72,6 +72,7 @@ model User {
   submissions        SubmittedData[]
   companyMemberships CompanyMembership[]
   subscriptions      Subscription[]
+  challengeSubmissions ChallengeSubmission[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 }
@@ -374,6 +375,10 @@ model ChallengeSubmission {
   solutionTitle  String
   description    String?
   repoUrl        String?
+  videoUrl       String?
+  requestKey     String?  @unique
+  submittedById  String?
+  submittedBy    User?    @relation(fields: [submittedById], references: [id], onDelete: SetNull)
   dockerImage    String?
   hardwareSpecs  String?
   benchmarkScore Float?
@@ -381,6 +386,7 @@ model ChallengeSubmission {
   submittedAt    DateTime @default(now())
 
   @@index([challengeId])
+  @@index([submittedById, challengeId, submittedAt])
   @@index([status])
 }
 

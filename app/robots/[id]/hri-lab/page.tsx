@@ -22,9 +22,10 @@ export default async function HriLivingLabPage({
   let allRobots: Array<{ id: string; canonicalName: string; robotType: string }> = [];
   let savedRuns: HriSavedRun[] = [];
   let dbLoadError: string | null = null;
+  let historyError: string | null = null;
 
   try {
-    const [found, modelsList, dbRuns] = await Promise.all([
+    const [modelResult, modelsResult, runsResult] = await Promise.allSettled([
       prisma.robotModel.findUnique({
         where: { id },
         include: {
@@ -52,7 +53,11 @@ export default async function HriLivingLabPage({
       })
     ]);
 
-    allRobots = modelsList;
+    if (modelResult.status === "rejected") throw modelResult.reason;
+    const found = modelResult.value;
+    allRobots = modelsResult.status === "fulfilled" ? modelsResult.value : [];
+    const dbRuns = runsResult.status === "fulfilled" ? runsResult.value : [];
+    if (runsResult.status === "rejected") historyError = "โหลดประวัติ Run Log ไม่สำเร็จ ยังทดลองและส่งออกผลรอบใหม่ได้";
 
     if (found) {
       const sources = await prisma.sourceRecord.findMany({
@@ -65,6 +70,9 @@ export default async function HriLivingLabPage({
         orderBy: [{ relevanceConfidence: "desc" }, { updatedAt: "desc" }],
         take: 5,
         select: { id: true, title: true, url: true, platform: true }
+      }).catch(() => {
+        historyError = [historyError, "โหลดแหล่งอ้างอิงเพิ่มเติมไม่สำเร็จ กรุณาลองโหลดหน้าอีกครั้ง"].filter(Boolean).join(" · ");
+        return [];
       });
 
       const publicLocations = [
@@ -126,11 +134,13 @@ export default async function HriLivingLabPage({
 
   return (
     <HriLabClient
+      key={id}
       requestedRobotId={id}
       initialRobot={robot}
       allRobots={allRobots}
       initialRuns={savedRuns}
       initialLoadError={dbLoadError}
+      initialHistoryError={historyError}
       lang={lang}
     />
   );

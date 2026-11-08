@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import ChallengeDetailClient from "./ChallengeDetailClient";
 import { MOCK_CHALLENGES, INITIAL_SUBMISSIONS } from "../mockData";
+import { challengeEntryWindow } from "@/lib/challenge-entry-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +35,11 @@ export default async function ChallengeDetailPage({
   }
 
   const submissions = INITIAL_SUBMISSIONS[challenge.id] || [];
+  const lang = (await cookies()).get("lang")?.value === "th" ? "th" : "en";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <ChallengeDetailClient challenge={challenge} initialSubmissions={submissions} />
+      <ChallengeDetailClient key={challenge.id} challenge={challenge} initialSubmissions={submissions} canSubmit={challengeEntryWindow(challenge)} lang={lang} />
     </div>
   );
 }

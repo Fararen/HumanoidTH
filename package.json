@@ -27,7 +27,8 @@
     "ingest:github": "tsx scripts/ingest.ts github",
     "ingest:gdelt": "tsx scripts/ingest.ts gdelt",
     "ingest:youtube": "tsx scripts/ingest.ts youtube",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "test:hri": "playwright test --config playwright.hri.config.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -54,6 +55,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@types/three": "^0.185.0",
+    "esbuild": "0.28.1",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
     "playwright": "^1.61.1",

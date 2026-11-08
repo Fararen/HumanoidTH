@@ -1032,7 +1032,7 @@ tbody tr:hover {
 @media (max-width: 860px) {
   .app-shell {
     display: block;
-    padding-top: 60px;
+    padding-top: 112px;
     padding-bottom: 86px;
   }
 

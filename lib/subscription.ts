@@ -1,37 +1,49 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { DASHBOARD_PLAN, effectiveSubscriptionStatus, grantsDashboardAccess } from "@/lib/subscription-policy";
 
-export async function hasDashboardSubscription() {
-  const cookieStore = await cookies();
-  const email = cookieStore.get("user_email")?.value;
-  const role = cookieStore.get("user_role")?.value;
-  const demoRole = cookieStore.get("demo_account")?.value;
+export type DashboardSubscription = {
+  hasAccess: boolean;
+  status: string;
+  currentPeriodEnd: Date | null;
+};
 
-  if (!email) return false;
-  if (
-    process.env.NODE_ENV !== "production" &&
-    demoRole === role &&
-    ["USER", "COMPANY", "ADMIN"].includes(demoRole || "")
-  ) {
-    return demoRole === "ADMIN" || cookieStore.get("demo_subscription")?.value === "ACTIVE";
-  }
-
+export async function getDashboardSubscription(): Promise<DashboardSubscription> {
   try {
     const user = await getSessionUser();
-    if (!user) return false;
-    if (user.role === "ADMIN") return true;
+    if (!user) return { hasAccess: false, status: "NONE", currentPeriodEnd: null };
+    if (user.role === "ADMIN") return { hasAccess: true, status: "ADMIN", currentPeriodEnd: null };
+    if (user.id.startsWith("demo:")) {
+      const active = (await cookies()).get("demo_subscription")?.value === "ACTIVE";
+      return { hasAccess: active, status: active ? "DEMO" : "NONE", currentPeriodEnd: null };
+    }
+    const now = new Date();
     const subscription = await prisma.subscription.findFirst({
       where: {
         userId: user.id,
+        plan: DASHBOARD_PLAN,
         status: "ACTIVE",
-        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }]
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }]
       },
-      select: { id: true }
+      orderBy: { updatedAt: "desc" }
     });
-    return Boolean(subscription);
+    if (subscription) return { hasAccess: grantsDashboardAccess(subscription, now), status: "ACTIVE", currentPeriodEnd: subscription.currentPeriodEnd };
+    const latest = await prisma.subscription.findFirst({
+      where: { userId: user.id, plan: DASHBOARD_PLAN },
+      orderBy: { updatedAt: "desc" }
+    });
+    return {
+      hasAccess: false,
+      status: latest ? effectiveSubscriptionStatus(latest, now) : "NONE",
+      currentPeriodEnd: latest?.currentPeriodEnd ?? null
+    };
   } catch (error) {
     console.error("Failed to check dashboard subscription:", error);
-    return false;
+    return { hasAccess: false, status: "UNAVAILABLE", currentPeriodEnd: null };
   }
+}
+
+export async function hasDashboardSubscription() {
+  return (await getDashboardSubscription()).hasAccess;
 }

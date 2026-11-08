@@ -17,6 +17,7 @@ export default async function ChallengesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <p className="notice">{lang === "th" ? "แค็ตตาล็อกการแข่งขัน รางวัล และ Leaderboard ในหน้านี้เป็นข้อมูลตัวอย่างสำหรับทดลองระบบ" : "This competition catalog, prizes, and leaderboards contain example content for exploring the platform."}</p>
       <ChallengesClient initialChallenges={MOCK_CHALLENGES} lang={lang} />
     </div>
   );
