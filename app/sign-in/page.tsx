@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { signIn } from "./actions";
-import { publicDemoSandboxEnabled } from "@/lib/demo-mode";
+import { publicDemoModeEnabled } from "@/lib/demo-mode";
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ from?: string; error?: string }> }) {
   const query = await searchParams;
   return <div className="platform-page"><h1>เข้าสู่ระบบ · Sign in</h1>
@@ -11,6 +11,6 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <label>Password<input name="password" type="password" required autoComplete="current-password" /></label>
       <button>เข้าสู่ระบบ · Sign in</button>
     </form><Link href="/register">สร้างบัญชี · Create account</Link>
-    {(process.env.LOCAL_DEMO_MODE === "1" || publicDemoSandboxEnabled) && <p><Link href="/demo">บัญชีทดลอง · Demo accounts</Link></p>}
+    {(process.env.LOCAL_DEMO_MODE === "1" || publicDemoModeEnabled()) && <p><Link href="/demo">บัญชีทดลอง · Demo accounts</Link></p>}
   </div>;
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createSessionToken, sessionEmail } from "./auth-token";
+import { publicDemoModeEnabled } from "./demo-mode";
 
 export type AppRole = "USER" | "COMPANY" | "ADMIN" | "REVIEWER" | "LAB" | "ORGANIZER" | "JUDGE" | "MODERATOR";
 
@@ -16,6 +17,7 @@ export async function getSessionUser() {
     if (demoEmail) return { id: `demo:${demoEmail}`, email: "", name: "Read-only preview", role: "USER" as AppRole };
   }
   if (!email) return null;
+  if (process.env.NODE_ENV === "production" && email.endsWith("@demo.humanoidth.local") && !publicDemoModeEnabled()) return null;
 
   return prisma.user.findUnique({
     where: { email },

@@ -24,6 +24,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "seed:demo-sandbox": "tsx scripts/seed-demo-sandbox.ts",
+    "seed:temporary-demo": "tsx scripts/seed-temporary-demo-accounts.ts",
+    "delete:temporary-demo": "tsx scripts/delete-temporary-demo-accounts.ts",
     "ingest:openalex": "tsx scripts/ingest.ts openalex",
     "ingest:github": "tsx scripts/ingest.ts github",
     "ingest:gdelt": "tsx scripts/ingest.ts gdelt",
